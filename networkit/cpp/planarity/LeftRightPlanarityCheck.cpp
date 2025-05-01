@@ -31,7 +31,25 @@ void LeftRightPlanarityCheck::run() {
     sortAdjacencyListByNestingDepth();
     isGraphPlanar =
         std::ranges::all_of(roots, [this](node rootNode) { return dfsTesting(rootNode); });
+
+    for (auto edge: dfsGraph.edgeRange()) {
+        nestingDepth[edge] = sign(edge)*nestingDepth[edge];
+    }
+
     hasRun = true;
+}
+
+int LeftRightPlanarityCheck::sign(Edge &edge) {
+    int sign = 1;
+    while (true) {
+        sign *= baseSide(edge);
+        auto it = ref.find(edge);
+        if (it == ref.end() || it->second == noneEdge) {
+            break;
+        }
+        edge = it->second;
+    }
+    return sign;
 }
 
 void LeftRightPlanarityCheck::sortAdjacencyListByNestingDepth() {

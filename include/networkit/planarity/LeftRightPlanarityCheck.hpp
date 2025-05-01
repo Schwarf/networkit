@@ -85,6 +85,9 @@ private:
             return lhs.left == rhs.left && lhs.right == rhs.right;
         }
     };
+    inline int baseSide(const Edge &e) const {
+        return leftEdges.contains(e) ? -1 : +1;
+    }
 
     const ConflictPair NoneConflictPair{Interval(), Interval()};
 
@@ -96,6 +99,7 @@ private:
     void removeBackEdges(const Edge &edge);
     void sortAdjacencyListByNestingDepth();
     bool conflicting(const Interval &interval, const Edge &edge);
+    int sign(Edge &edge);
     count getLowestLowPoint(const ConflictPair &conflictPair);
     std::vector<count> heights;
     std::unordered_map<Edge, count> lowestPoint;
@@ -104,7 +108,7 @@ private:
     std::unordered_set<Edge> leftEdges;
     std::vector<node> roots;
     std::unordered_map<Edge, Edge> lowestPointEdge;
-    std::unordered_map<Edge, count> nestingDepth;
+    std::unordered_map<Edge, int64_t> nestingDepth;
     std::unordered_map<index, Edge> parentEdges;
     std::stack<ConflictPair> stack;
     std::unordered_map<Edge, ConflictPair> stackBottom;
