@@ -32,14 +32,15 @@ void LeftRightPlanarityCheck::run() {
     isGraphPlanar =
         std::ranges::all_of(roots, [this](node rootNode) { return dfsTesting(rootNode); });
 
-    for (auto edge: dfsGraph.edgeRange()) {
+    for (const auto edge: dfsGraph.edgeRange()) {
         nestingDepth[edge] = sign(edge)*nestingDepth[edge];
     }
+
 
     hasRun = true;
 }
 
-int LeftRightPlanarityCheck::sign(Edge &edge) {
+int LeftRightPlanarityCheck::sign(Edge edge) {
     int sign = 1;
     while (true) {
         sign *= baseSide(edge);

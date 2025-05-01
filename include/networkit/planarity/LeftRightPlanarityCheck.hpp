@@ -85,7 +85,7 @@ private:
             return lhs.left == rhs.left && lhs.right == rhs.right;
         }
     };
-    inline int baseSide(const Edge &e) const {
+    int baseSide(const Edge &e) const {
         return leftEdges.contains(e) ? -1 : +1;
     }
 
@@ -99,7 +99,7 @@ private:
     void removeBackEdges(const Edge &edge);
     void sortAdjacencyListByNestingDepth();
     bool conflicting(const Interval &interval, const Edge &edge);
-    int sign(Edge &edge);
+    int sign(Edge edge);
     count getLowestLowPoint(const ConflictPair &conflictPair);
     std::vector<count> heights;
     std::unordered_map<Edge, count> lowestPoint;
