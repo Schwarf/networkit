@@ -86,7 +86,6 @@ private:
         }
     };
 
-    enum class Side : int8_t { Left  = -1, Right = +1 };
     const ConflictPair NoneConflictPair{Interval(), Interval()};
 
     const Graph *graph;
@@ -102,7 +101,7 @@ private:
     std::unordered_map<Edge, count> lowestPoint;
     std::unordered_map<Edge, count> secondLowestPoint;
     std::unordered_map<Edge, Edge> ref;
-    std::unordered_map<Edge,Side> side;
+    std::unordered_set<Edge> leftEdges;
     std::vector<node> roots;
     std::unordered_map<Edge, Edge> lowestPointEdge;
     std::unordered_map<Edge, count> nestingDepth;

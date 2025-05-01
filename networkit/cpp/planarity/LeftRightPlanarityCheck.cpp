@@ -119,7 +119,11 @@ count LeftRightPlanarityCheck::getLowestLowPoint(const ConflictPair &conflictPai
 void LeftRightPlanarityCheck::removeBackEdges(const Edge &edge) {
     const node parentNode = edge.u;
     while (!stack.empty() && getLowestLowPoint(stack.top()) == heights[parentNode]) {
+        const auto conflictPair = stack.top();
         stack.pop();
+        if (conflictPair.left.low != noneEdge) {
+            leftEdges.insert(conflictPair.left.low);
+        }
     }
 
     if (!stack.empty()) {
@@ -131,6 +135,7 @@ void LeftRightPlanarityCheck::removeBackEdges(const Edge &edge) {
         }
         if (conflictPair.left.high == noneEdge && conflictPair.left.low != noneEdge) {
             ref[conflictPair.left.low] = conflictPair.right.low;
+            leftEdges.insert(conflictPair.left.low);
             conflictPair.left.low = noneEdge;
         }
         while (conflictPair.right.high != noneEdge && conflictPair.right.high.v == parentNode) {
@@ -140,6 +145,7 @@ void LeftRightPlanarityCheck::removeBackEdges(const Edge &edge) {
 
         if (conflictPair.right.high == noneEdge && conflictPair.right.low != noneEdge) {
             ref[conflictPair.right.low] = conflictPair.left.low;
+            leftEdges.insert(conflictPair.left.low);
             conflictPair.right.low = noneEdge;
         }
         stack.push(conflictPair);
