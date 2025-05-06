@@ -97,6 +97,7 @@ private:
     bool provideEmbedding{};
     void dfsOrientation(node startNode);
     bool dfsTesting(node startNode);
+    void dfsEmbedding(node startNode);
     bool applyConstraints(const Edge &edge, const Edge &parentEdge);
     void removeBackEdges(const Edge &edge);
     void sortAdjacencyListByNestingDepth();

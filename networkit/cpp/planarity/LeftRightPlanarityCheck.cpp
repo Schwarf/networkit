@@ -36,12 +36,19 @@ void LeftRightPlanarityCheck::run() {
 
     // For planar graphs we might want to provide a planar embedding if the user requires
     if (isGraphPlanar && provideEmbedding) {
-        for (const auto edge: dfsGraph.edgeRange()) {
-            nestingDepth[edge] = sign(edge)*nestingDepth[edge];
+        for (const auto edge : dfsGraph.edgeRange()) {
+            nestingDepth[edge] = sign(edge) * nestingDepth[edge];
         }
         sortAdjacencyListByNestingDepth();
-
+        dfsGraph.forNodes([&](node currentNode) {
+            node previousNode = none;
+            dfsGraph.forNeighborsOf(currentNode, [&](node neighbor) {
+                planarEmbedding.addHalfEdge(currentNode, neighbor, true, previousNode);
+                previousNode = neighbor;
+            });
+        });
     }
+
     hasRun = true;
 }
 
@@ -304,5 +311,13 @@ void LeftRightPlanarityCheck::dfsOrientation(node startNode) {
         }
     } while (!dfsStack.empty());
 }
+
+void LeftRightPlanarityCheck::dfsEmbedding(node startNode) {
+    std::stack<node> dfsStack;
+    dfsStack.push(startNode);
+
+
+}
+
 
 } // namespace NetworKit
