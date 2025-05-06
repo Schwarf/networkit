@@ -32,11 +32,13 @@ void LeftRightPlanarityCheck::run() {
     isGraphPlanar =
         std::ranges::all_of(roots, [this](node rootNode) { return dfsTesting(rootNode); });
 
-    for (const auto edge: dfsGraph.edgeRange()) {
-        nestingDepth[edge] = sign(edge)*nestingDepth[edge];
+    // For planar graphs we might want to provide a planar embedding if the user requires
+    if (isGraphPlanar && provideEmbedding) {
+        for (const auto edge: dfsGraph.edgeRange()) {
+            nestingDepth[edge] = sign(edge)*nestingDepth[edge];
+        }
+        sortAdjacencyListByNestingDepth();
     }
-
-
     hasRun = true;
 }
 

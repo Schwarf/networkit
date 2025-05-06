@@ -26,9 +26,11 @@ public:
      * arises from sorting the nodes of the depth-first search tree.
      *
      * @param G The input graph to test for planarity. The graph should be undirected.
+     * @param provideEmbedding Shall a planar embedding be provided if graph is planar
      * @throws std::runtime_error if graph is not an undirected graph
      */
-    LeftRightPlanarityCheck(const Graph &G) : graph(&G) {
+    LeftRightPlanarityCheck(const Graph &G, bool provideEmbedding = false)
+        : graph(&G), provideEmbedding(provideEmbedding) {
         if (G.isDirected()) {
             throw std::runtime_error("The graph is not an undirected graph.");
         }
@@ -85,14 +87,13 @@ private:
             return lhs.left == rhs.left && lhs.right == rhs.right;
         }
     };
-    int baseSide(const Edge &e) const {
-        return leftEdges.contains(e) ? -1 : +1;
-    }
+    int baseSide(const Edge &e) const { return leftEdges.contains(e) ? -1 : +1; }
 
     const ConflictPair NoneConflictPair{Interval(), Interval()};
 
     const Graph *graph;
     bool isGraphPlanar{};
+    bool provideEmbedding{};
     void dfsOrientation(node startNode);
     bool dfsTesting(node startNode);
     bool applyConstraints(const Edge &edge, const Edge &parentEdge);
