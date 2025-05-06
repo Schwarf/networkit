@@ -9,6 +9,7 @@
 #define NETWORKIT_PLANARITY_LEFT_RIGHT_PLANARITY_CHECK_HPP_
 #include <networkit/base/Algorithm.hpp>
 #include <networkit/graph/Graph.hpp>
+#include <networkit/planarity/PlanarEmbedding.hpp>
 
 namespace NetworKit {
 
@@ -26,11 +27,11 @@ public:
      * arises from sorting the nodes of the depth-first search tree.
      *
      * @param G The input graph to test for planarity. The graph should be undirected.
-     * @param provideEmbedding Shall a planar embedding be provided if graph is planar
+     * @param embeddingProvided Shall a planar embedding be provided if graph is planar
      * @throws std::runtime_error if graph is not an undirected graph
      */
-    LeftRightPlanarityCheck(const Graph &G, bool provideEmbedding = false)
-        : graph(&G), provideEmbedding(provideEmbedding) {
+    LeftRightPlanarityCheck(const Graph &G, bool embeddingProvided = false)
+        : graph(&G), provideEmbedding(embeddingProvided) {
         if (G.isDirected()) {
             throw std::runtime_error("The graph is not an undirected graph.");
         }
@@ -114,6 +115,7 @@ private:
     std::stack<ConflictPair> stack;
     std::unordered_map<Edge, ConflictPair> stackBottom;
     Graph dfsGraph;
+    PlanarEmbedding planarEmbedding;
 };
 } // namespace NetworKit
 #endif // NETWORKIT_PLANARITY_LEFT_RIGHT_PLANARITY_CHECK_HPP_

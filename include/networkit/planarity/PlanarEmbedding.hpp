@@ -9,7 +9,8 @@
 namespace NetworKit {
 class PlanarEmbedding {
 public:
-    explicit PlanarEmbedding::PlanarEmbedding(count n)
+    PlanarEmbedding(){}
+    explicit PlanarEmbedding(count n)
         : graph(n, /*weighted=*/false, /*directed=*/true, /*fast=*/false),
           clockWiseNeighborOrder(n) {
         for (auto &neighbors : clockWiseNeighborOrder) {
