@@ -33,10 +33,11 @@ public:
 
     std::vector<std::vector<node>> getEmbedding() const;
     std::vector<node> getClockWiseOrderedNeighbors(node u) const;
-
+    friend bool operator==(const PlanarEmbedding &embedding1, const PlanarEmbedding &embedding2);
 private:
     Graph graph;
     std::vector<std::vector<node>> clockWiseNeighborOrder;
 };
+
 } // namespace NetworKit
 #endif // PLANAREMBEDDING_HPP
