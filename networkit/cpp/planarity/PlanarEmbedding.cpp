@@ -37,5 +37,7 @@ std::vector<node> PlanarEmbedding::getClockWiseOrderedNeighbors(node u) const {
         return clockWiseNeighborOrder[u];
     throw std::runtime_error("getClockWiseOrderedNeighbors: Node u is not in Embedding!");
 }
-
+Graph PlanarEmbedding::getGraph() const {
+    return graph;
+}
 } // namespace NetworKit
