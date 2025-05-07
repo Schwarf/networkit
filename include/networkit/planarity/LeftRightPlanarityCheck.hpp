@@ -58,6 +58,11 @@ public:
         return isGraphPlanar;
     }
 
+    PlanarEmbedding getPlanarEmbedding() const {
+        return planarEmbedding;
+    }
+
+
 private:
     static const Edge noneEdge;
     static constexpr count noneHeight{std::numeric_limits<count>::max()};

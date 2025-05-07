@@ -315,9 +315,33 @@ void LeftRightPlanarityCheck::dfsOrientation(node startNode) {
 void LeftRightPlanarityCheck::dfsEmbedding(node startNode) {
     std::stack<node> dfsStack;
     dfsStack.push(startNode);
+    std::unordered_map<node, node> leftReference;
+    std::unordered_map<node, node> rightReference;
+    do {
+        const node currentNode = dfsStack.top();
+        dfsStack.pop();
+        for (node neighbor : graph->neighborRange(currentNode)) {
+            const Edge currentEdge = Edge(currentNode, neighbor);
+            // edge in DFS tree
+            if (currentEdge == parentEdges[neighbor]) {
+                // TODO Fix this call, its wrong
+                planarEmbedding.addHalfEdge(neighbor, currentNode, true, none);
+                leftReference[currentNode] = neighbor;
+                rightReference[currentNode] = neighbor;
 
-
+                dfsStack.push(currentNode);
+                dfsStack.push(neighbor);
+                break;
+            }
+            // it is a back edge
+            if (leftEdges.contains(currentEdge)) {
+                planarEmbedding.addHalfEdge(neighbor, currentNode, false, leftReference[neighbor]);
+                leftReference[neighbor] = currentNode;
+            } else {
+                planarEmbedding.addHalfEdge(neighbor, currentNode, true, rightReference[neighbor]);
+            }
+        }
+    } while (!dfsStack.empty());
 }
-
 
 } // namespace NetworKit
