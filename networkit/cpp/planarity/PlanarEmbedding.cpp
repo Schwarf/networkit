@@ -28,11 +28,11 @@ void PlanarEmbedding::addHalfEdge(node source, node target, bool is_counter_cloc
     }
 }
 
-std::vector<std::vector<node>> PlanarEmbedding::getEmbedding() const {
+std::vector<std::vector<node>> PlanarEmbedding::getClockwiseNeighborOrder() const {
     return clockWiseNeighborOrder;
 }
 
-std::vector<node> PlanarEmbedding::getClockWiseOrderedNeighbors(node u) const {
+std::vector<node> PlanarEmbedding::getClockWiseOrderedNeighborOf(node u) const {
     if (u < graph.numberOfNodes())
         return clockWiseNeighborOrder[u];
     throw std::runtime_error("getClockWiseOrderedNeighbors: Node u is not in Embedding!");

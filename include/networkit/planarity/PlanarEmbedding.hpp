@@ -31,8 +31,8 @@ public:
      */
     void addHalfEdge(node source, node target, bool is_counter_clock_wise, node reference_node);
 
-    std::vector<std::vector<node>> getEmbedding() const;
-    std::vector<node> getClockWiseOrderedNeighbors(node u) const;
+    std::vector<std::vector<node>> getClockwiseNeighborOrder() const;
+    std::vector<node> getClockWiseOrderedNeighborOf(node u) const;
     Graph getGraph() const;
     friend bool operator==(const PlanarEmbedding &embedding1, const PlanarEmbedding &embedding2);
 private:
