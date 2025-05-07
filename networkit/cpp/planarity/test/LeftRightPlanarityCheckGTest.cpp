@@ -377,4 +377,33 @@ TEST_F(LeftRightPlanarityCheckGTest, testNonPlanarAstroPhGraph) {
     EXPECT_FALSE(test.isPlanar());
 }
 
+
+TEST_F(LeftRightPlanarityCheckGTest, testPlanarEmbeddingNotRequired) {
+    Graph graph{};
+    LeftRightPlanarityCheck test(graph);
+    test.run();
+    PlanarEmbedding expectedEmbedding;
+    EXPECT_EQ(test.getPlanarEmbedding(), expectedEmbedding);
+}
+
+TEST_F(LeftRightPlanarityCheckGTest, testNonPlanarEmbeddingNotRequired) {
+    Graph graph(6);
+    graph.addEdge(0, 3);
+    graph.addEdge(0, 4);
+    graph.addEdge(0, 5);
+    graph.addEdge(1, 3);
+    graph.addEdge(1, 4);
+    graph.addEdge(1, 5);
+    graph.addEdge(2, 3);
+    graph.addEdge(2, 4);
+    graph.addEdge(2, 5);
+    constexpr bool getEmbedding = true;
+    LeftRightPlanarityCheck test(graph, getEmbedding);
+    test.run();
+    EXPECT_FALSE(test.isPlanar());
+    PlanarEmbedding expectedEmbedding;
+    EXPECT_EQ(test.getPlanarEmbedding(), expectedEmbedding);
+}
+
+
 } // namespace NetworKit
