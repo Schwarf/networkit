@@ -59,7 +59,11 @@ public:
     }
 
     PlanarEmbedding getPlanarEmbedding() const {
-        return planarEmbedding;
+        assureFinished();
+        if (isPlanar()) {
+            return planarEmbedding;
+        }
+        return PlanarEmbedding{};
     }
 
 
