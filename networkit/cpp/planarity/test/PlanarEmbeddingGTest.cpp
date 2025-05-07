@@ -64,4 +64,75 @@ TEST(PlanarEmbeddingTest, GetEmbeddingReturnsFullStructure) {
     EXPECT_EQ(neigghborOrder[2], std::vector<node>({0}));
 }
 
+
+TEST(PlanarEmbeddingTest, OperatorEqualitySimple) {
+    // build two identical embeddings
+    PlanarEmbedding embedding1(3), embedding2(3);
+    embedding1.addHalfEdge(0,1,false,0);
+    embedding1.addHalfEdge(1,2,false,1);
+    embedding1.addHalfEdge(2,0,false,2);
+
+    embedding2.addHalfEdge(0,1,false,0);
+    embedding2.addHalfEdge(1,2,false,1);
+    embedding2.addHalfEdge(2,0,false,2);
+
+    EXPECT_TRUE(embedding1 == embedding2);
+    EXPECT_FALSE(embedding1 != embedding2);
+}
+
+TEST(PlanarEmbeddingTest, OperatorEqualityCyclicShift) {
+    // Build embedding1: 0->[1,2,3]
+    PlanarEmbedding embedding1(4), embedding2(4);
+    embedding1.addHalfEdge(0,1,false,0);
+    embedding1.addHalfEdge(0,2,false,1);
+    embedding1.addHalfEdge(0,3,false,2);
+
+    // Build embedding2: 0->[2,3,1] (cyclic shift)
+    embedding2.addHalfEdge(0,2,false,0);
+    embedding2.addHalfEdge(0,3,false,2);
+    embedding2.addHalfEdge(0,1,false,3);
+
+    EXPECT_TRUE(embedding1 == embedding2) << "Cyclic shifts should compare equal";
+    EXPECT_FALSE(embedding1 != embedding2) << "Cyclic shifts should compare equal";
+}
+
+TEST(PlanarEmbeddingTest, OperatorNotEqualityMirror) {
+    // embedding1: 0->[1,2,3]
+    PlanarEmbedding embedding1(4), embedding2(4);
+    embedding1.addHalfEdge(0,1,false,0);
+    embedding1.addHalfEdge(0,2,false,1);
+    embedding1.addHalfEdge(0,3,false,2);
+
+    // embedding2: build in reverse order 0->[3,2,1]
+    embedding2.addHalfEdge(0,3,false,0);
+    embedding2.addHalfEdge(0,2,false,3);
+    embedding2.addHalfEdge(0,1,false,2);
+
+    EXPECT_TRUE(embedding1 != embedding2) << "Mirror image should not compare equal";
+    EXPECT_FALSE(embedding1 == embedding2) << "Mirror image should not compare equal";
+}
+
+TEST(PlanarEmbeddingTest, OperatorInequalityDifferentOrder) {
+    PlanarEmbedding embedding1(4), embedding2(4);
+    embedding1.addHalfEdge(0,1,false,0);
+    embedding1.addHalfEdge(0,2,false,1);
+    embedding1.addHalfEdge(0,3,false,2);
+
+    // embedding2 with a different swap: 0->[1,3,2]
+    embedding2.addHalfEdge(0,1,false,0);
+    embedding2.addHalfEdge(0,3,false,1);
+    embedding2.addHalfEdge(0,2,false,3);
+
+    EXPECT_FALSE(embedding1 == embedding2);
+    EXPECT_TRUE(embedding1 != embedding2);
+}
+
+TEST(PlanarEmbeddingTest, OperatorInequalityDifferentGraph) {
+    // embedding1 has edge 0->1; embedding2 is empty
+    PlanarEmbedding embedding1(2), embedding2(2);
+    embedding1.addHalfEdge(0,1,false,0);
+
+    EXPECT_FALSE(embedding1 == embedding2);
+    EXPECT_TRUE(embedding1 != embedding2);
+}
 } // namespace NetworKit

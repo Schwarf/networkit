@@ -73,13 +73,14 @@ inline bool operator==(const PlanarEmbedding &embedding1, const PlanarEmbedding 
             }
             return false;
         };
-        if (isShift(A, B))
-            return true;
+        return isShift(A, B);
+
 
         // 4) Test mirror (reverse B then rotation)
-        auto mirror = B;
-        std::reverse(mirror.begin(), mirror.end());
-        return isShift(A, mirror);
+        // TODO: DO we allow mirrors or not?
+        // auto mirror = B;
+        // std::reverse(mirror.begin(), mirror.end());
+        // return isShift(A, mirror);
     };
 
     // 5) Test that graphs are identical
