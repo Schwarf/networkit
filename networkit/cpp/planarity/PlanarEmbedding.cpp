@@ -1,43 +1,42 @@
 //
 // Created by andreas on 06.05.25.
 //
+#include <set>
 #include <networkit/planarity/PlanarEmbedding.hpp>
 
 namespace NetworKit {
 
-void PlanarEmbedding::addHalfEdge(node source, node target, bool is_counter_clock_wise,
-                                  node reference_node) {
-    // add the directed edge
-    graph.addEdge(source, target);
-
-    // splice `target` into source’s clockwise neighbor list
-    if (auto &sourceNeighbors = clockWiseNeighborOrder[source]; sourceNeighbors.empty()) {
-        // first half‐edge out of `source`
-        sourceNeighbors.push_back(target);
-    } else {
-        const auto it = std::ranges::find(sourceNeighbors, reference_node);
-        if (it == sourceNeighbors.end())
-            throw std::invalid_argument("addHalfEdge: The reference_node has not been found!");
-        if (is_counter_clock_wise) {
-            // counterclockwise insertion = place before reference_node in clockwise list
-            sourceNeighbors.insert(it, target);
-        } else {
-            // clockwise insertion = place after reference_node
-            sourceNeighbors.insert(std::next(it), target);
-        }
+PlanarEmbedding::PlanarEmbedding(const Graph &G) : graph(G) {
+    clockwiseOrder.resize(graph.numberOfNodes());
+    for (auto &neighbors : clockwiseOrder) {
+        neighbors.reserve(G.numberOfNodes());
     }
 }
 
-std::vector<std::vector<node>> PlanarEmbedding::getClockwiseNeighborOrder() const {
-    return clockWiseNeighborOrder;
+void PlanarEmbedding::addHalfEdge(node source, node target, bool clockwiseInsert, node ref) {
+    // Add directed edge and maintain CW order
+    if (!graph.hasEdge(source, target)) {
+        throw std::runtime_error("addHalfEdge: graph does not contain edge "
+                                 + std::to_string(source) + "->" + std::to_string(target));
+    }
+    auto &neighbors = clockwiseOrder[source];
+    if (neighbors.empty()) {
+        neighbors.push_back(target);
+    } else {
+        auto it = std::ranges::find(neighbors, ref);
+        if (it == neighbors.end()) {
+            throw std::runtime_error("addHalfEdge: reference node not found");
+        }
+        if (clockwiseInsert)
+            ++it;
+        neighbors.insert(it, target);
+    }
 }
 
-std::vector<node> PlanarEmbedding::getClockWiseOrderedNeighborOf(node u) const {
-    if (u < graph.numberOfNodes())
-        return clockWiseNeighborOrder[u];
-    throw std::runtime_error("getClockWiseOrderedNeighbors: Node u is not in Embedding!");
+const std::vector<std::vector<node>> &PlanarEmbedding::getClockwiseOrder() const {
+    return clockwiseOrder;
 }
-Graph PlanarEmbedding::getGraph() const {
-    return graph;
-}
+
+void PlanarEmbedding::checkStructure() const {}
+
 } // namespace NetworKit

@@ -11,22 +11,23 @@ namespace NetworKit {
 class PlanarEmbedding {
 public:
     /**
-     * Construct an empty embedding on n nodes.
+     * Construct an embedding for the given graph.
+     * The graph must outlive this embedding.
      */
-    explicit PlanarEmbedding(count n);
+    explicit PlanarEmbedding(const Graph &G);
 
     /**
      * Add a directed half-edge u->v into the clockwise cycle at u.
      * If cwInsert==true, insert v after ref in the CW list;
      * else insert before ref (i.e. CCW of ref).
      */
-    void addHalfEdge(node u, node v, bool cwInsert, node ref);
+    void addHalfEdge(node source, node target, bool clockwiseInsert, node ref);
 
     /** Access underlying graph */
-    const Graph& getGraph() const;
+    const Graph &getGraph() const { return graph; }
 
     /** Access per-vertex clockwise neighbor order */
-    const std::vector<std::vector<node>>& getClockwiseOrder() const;
+    const std::vector<std::vector<node>> &getClockwiseOrder() const;
 
     /** Validate embedding invariants:
      *  - half-edges come in opposite pairs,
@@ -36,10 +37,9 @@ public:
     void checkStructure() const;
 
 private:
-    Graph graph;
-    std::vector<std::vector<node>> cwOrder;
+    const Graph &graph;
+    std::vector<std::vector<node>> clockwiseOrder;
 };
-
 
 } // namespace NetworKit
 #endif // PLANAREMBEDDING_HPP
