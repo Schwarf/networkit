@@ -1,7 +1,6 @@
 //
 // Created by andreas on 06.05.25.
 //
-#include <set>
 #include <networkit/planarity/PlanarEmbedding.hpp>
 
 namespace NetworKit {

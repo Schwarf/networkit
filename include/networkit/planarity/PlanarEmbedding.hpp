@@ -18,8 +18,8 @@ public:
 
     /**
      * Add a directed half-edge u->v into the clockwise cycle at u.
-     * If cwInsert==true, insert v after ref in the CW list;
-     * else insert before ref (i.e. CCW of ref).
+     * If clockwiseInsert==true, insert v after ref in the clockWiseOrder list;
+     * else insert before ref (i.e. counterclockwise of ref).
      */
     void addHalfEdge(node source, node target, bool clockwiseInsert, node ref);
 
