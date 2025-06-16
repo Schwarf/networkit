@@ -8,6 +8,6 @@
 #include <networkit/flow/NetworkSimplex.hpp>
 namespace NetworKit{
     NetworkSimplex::NetworkSimplex(const Graph & G, const std::string& demandAttributeName, const std::string& capacityAttributeName, const std::string& weightAttributeName) :
-    graph(&G), {
+    graph(&G){
     }
 }

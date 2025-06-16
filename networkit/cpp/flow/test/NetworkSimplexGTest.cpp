@@ -6,9 +6,11 @@
  */
 #include <gtest/gtest.h>
 #include <networkit/graph/Graph.hpp>
+#include <networkit/flow/NetworkSimplex.hpp>
 
 namespace NetworKit {
-TEST(GraphGTest, AttributeTest) {
+
+TEST(Test, AttributeTest) {
     Graph G(4, /*weighted=*/false, /*directed=*/false, /*edgesIndexed=*/true);
     // 5. Assign capacity values to each edge by edge endpoints (u,v).
     // The operator()(u, v) returns a proxy that allows setting the attribute for edge (u,v).
@@ -18,9 +20,10 @@ TEST(GraphGTest, AttributeTest) {
     G.addEdge(3, 0);
     auto capacityAttr = G.attachEdgeDoubleAttribute("capacity");
     capacityAttr(0, 1) = 10.5;
+    capacityAttr(3, 0) = 7.5;
     capacityAttr(1, 2) = 8.0;
     capacityAttr(2, 3) = 12.0;
-    capacityAttr(3, 0) = 7.5;
+
 
     // 6. Query and print the capacity of a specific edge, e.g. edge (0,1)
     double cap01 = capacityAttr.get2(0, 1);  // get2(u,v) fetches the value by endpoints
@@ -38,6 +41,8 @@ TEST(GraphGTest, AttributeTest) {
     }
     int v =1 ;
     EXPECT_EQ(1, v);
+    for (int i{}; i < 4; ++i)
+        std::cout << x.get(i) << std::endl;
     // auto y = G.getEdgeDoubleAttribute("bert");
 }
 }
