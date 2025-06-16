@@ -20,9 +20,11 @@ public:
                    const std::string& capacityAttributName  = "capacity",
                    const std::string& weightAttributeName   = "weight");
 
-    std::pair<double,std::vector<double>> run();
+    std::pair<double,std::vector<double>> run(){};
 
-    // …
+
+    private:
+    const Graph *graph;
 };
 }
 #endif //NETWORKSIMPLEX_H
