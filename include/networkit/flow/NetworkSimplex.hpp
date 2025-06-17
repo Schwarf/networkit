@@ -9,6 +9,7 @@
 #define NETWORKIT_FLOW_NETWORKSIMPLEX_HPP_
 #include <networkit/graph/Graph.hpp>
 #include <networkit/base/Algorithm.hpp>
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <utility>
@@ -22,8 +23,14 @@ public:
 
 
 
+
     void run() override{}
     private:
+
+    static const Edge noneEdge;
+    std::unordered_map<Edge, double> capacities;
+    std::unordered_map<Edge, double> flows;
+    std::unordered_map<Edge, double> costs;
     const Graph *graph;
     std::string demand;
     std::string capacity;
