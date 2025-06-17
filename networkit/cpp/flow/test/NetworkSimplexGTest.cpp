@@ -1,14 +1,29 @@
 /*  NetworkSimplexGTest.cpp
-*
+ *
  *	Created on: 16.06.2025
  *  Authors: Andreas Scharf (andreas.b.scharf@gmail.com)
  *
  */
 #include <gtest/gtest.h>
-#include <networkit/graph/Graph.hpp>
 #include <networkit/flow/NetworkSimplex.hpp>
+#include <networkit/graph/Graph.hpp>
 
 namespace NetworKit {
+
+class NetworkSimplexGTest : public testing::Test {
+public:
+    NetworkSimplexGTest() = default;
+};
+
+TEST_F(NetworkSimplexGTest, testConstructorThrowsForUndirectedGraph) {
+    Graph graph(1, true, false);
+    EXPECT_THROW({ NetworkSimplex test(graph); }, std::runtime_error);
+}
+
+TEST_F(NetworkSimplexGTest, testConstructorThrowsForUnweightedGraph) {
+    Graph graph(1, false, true);
+    EXPECT_THROW({ NetworkSimplex test(graph); }, std::runtime_error);
+}
 
 TEST(Test, AttributeTest) {
     Graph G(4, /*weighted=*/false, /*directed=*/false, /*edgesIndexed=*/true);
@@ -19,30 +34,30 @@ TEST(Test, AttributeTest) {
     G.addEdge(2, 3);
     G.addEdge(3, 0);
     auto capacityAttr = G.attachEdgeDoubleAttribute("capacity");
+    auto costAttr = G.attachEdgeDoubleAttribute("cost");
     capacityAttr(0, 1) = 10.5;
     capacityAttr(3, 0) = 7.5;
     capacityAttr(1, 2) = 8.0;
     capacityAttr(2, 3) = 12.0;
 
-
     // 6. Query and print the capacity of a specific edge, e.g. edge (0,1)
-    double cap01 = capacityAttr.get2(0, 1);  // get2(u,v) fetches the value by endpoints
+    double cap01 = capacityAttr.get2(0, 1); // get2(u,v) fetches the value by endpoints
     std::cout << "Capacity of edge (0,1) is " << cap01 << std::endl;
 
     // Alternatively, you could retrieve by edge ID:
-    index eId = G.edgeId(0, 1);           // get the internal ID of edge (0,1)
+    index eId = G.edgeId(0, 1); // get the internal ID of edge (0,1)
     double cap_by_id = capacityAttr[eId];
     auto x = G.getEdgeDoubleAttribute("capacity");
     try {
         auto y = G.getEdgeDoubleAttribute("bert");
-    }
-    catch (const std::runtime_error &rt) {
+    } catch (const std::runtime_error &rt) {
         std::cout << "CATCHED" << std::endl;
     }
-    int v =1 ;
+    int v = 1;
     EXPECT_EQ(1, v);
     for (int i{}; i < 4; ++i)
         std::cout << x.get(i) << std::endl;
+
     // auto y = G.getEdgeDoubleAttribute("bert");
 }
-}
+} // namespace NetworKit

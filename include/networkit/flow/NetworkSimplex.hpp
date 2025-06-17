@@ -18,14 +18,16 @@ class NetworkSimplex : public Algorithm {
 public:
     NetworkSimplex(const Graph &G,
                    const std::string& demandAttributeName   = "demand",
-                   const std::string& capacityAttributName  = "capacity",
-                   const std::string& weightAttributeName   = "weight");
+                   const std::string& capacityAttributeName  = "capacity");
 
 
 
-
+    void run() override{}
     private:
     const Graph *graph;
+    std::string demand;
+    std::string capacity;
+    std::string flow{"flow"};
 };
 }
 #endif //NETWORKSIMPLEX_H
