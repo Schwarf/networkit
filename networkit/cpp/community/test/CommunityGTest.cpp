@@ -411,6 +411,44 @@ TEST_F(CommunityGTest, testCoverage) {
     EXPECT_GE(0.0, covSingleton) << "singleton clustering should have coverage of 0.0";
 }
 
+TEST_F(CommunityGTest, testCoverageDeterministicOnAstroPh) {
+    METISGraphReader reader;
+    Graph G = reader.read("input/astro-ph.graph");
+
+    const index z = G.upperNodeIdBound();
+
+    // Create partition for all nodes
+    Partition zeta(z);
+
+    // We want 4 clusters with IDs 0,1,2,3
+    zeta.setUpperBound(4);
+
+    // Deterministic assignment: cluster = u % 4
+    G.forNodes([&](node u) {
+        zeta.addToSubset(static_cast<index>(u % 4), u);
+    });
+
+    // --- reference coverage (serial) ---
+    double totalEdgeWeight = G.totalEdgeWeight();
+
+    double intraEdgeWeight = 0.0;
+    G.forEdges([&](node u, node v, edgeweight w) {
+        if (zeta[u] == zeta[v]) {
+            intraEdgeWeight += w;
+        }
+    });
+
+    double expectedCov = intraEdgeWeight / totalEdgeWeight;
+
+    // --- implementation under test ---
+    Coverage coverage;
+    double cov = coverage.getQuality(zeta, G);
+
+    EXPECT_GE(cov, 0.0);
+    EXPECT_LE(cov, 1.0);
+    EXPECT_NEAR(cov, expectedCov, 1e-12);
+}
+
 // TODO necessary testcase? move equals to some class ?
 TEST_F(CommunityGTest, testClusteringEquality) {
     count n = 100;
