@@ -49,26 +49,26 @@ void DynPrunedLandmarkLabeling::prunedBFS(node k, node startNode, count bfsLevel
     std::fill(visited.begin(), visited.end(), false);
     visited[startNode] = true;
 
-    std::queue<node> q0, q1;
-    q0.push(startNode);
+    frontierCur.clear();
+    frontierNext.clear();
 
-    auto visitNeighbor = [&visited = visited, &q1](node v) -> void {
+    frontierCur.push_back(startNode);
+
+    auto pushNeighbor = [&](node v) -> void {
         if (visited[v])
             return;
         visited[v] = true;
-        q1.push(v);
+        frontierNext.push_back(v);
     };
 
-    do {
-        do {
-            const node u = q0.front();
-            q0.pop();
+    while (!frontierCur.empty()) {
+        for (node u : frontierCur) {
 
             if (reverse) {
-                if (queryImpl(u, root, k) <= bfsLevel)
+                if (isDistanceAtMost(u, root, k, bfsLevel))
                     continue;
             } else {
-                if (queryImpl(root, u, k) <= bfsLevel)
+                if (isDistanceAtMost(root, u, k, bfsLevel))
                     continue;
             }
 
@@ -76,16 +76,17 @@ void DynPrunedLandmarkLabeling::prunedBFS(node k, node startNode, count bfsLevel
 
             if (reverse) {
                 labelsIn[u].emplace_back(k, bfsLevel);
-                G->forInNeighborsOf(u, visitNeighbor);
+                G->forInNeighborsOf(u, pushNeighbor);
             } else {
                 labelsOut[u].emplace_back(k, bfsLevel);
-                G->forNeighborsOf(u, visitNeighbor);
+                G->forNeighborsOf(u, pushNeighbor);
             }
-        } while (!q0.empty());
+        }
 
         ++bfsLevel;
-        std::swap(q0, q1);
-    } while (!q0.empty());
+        frontierCur.clear();
+        frontierCur.swap(frontierNext);
+    }
 
     sortUpdatedLabels(reverse);
 }

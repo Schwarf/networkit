@@ -120,6 +120,32 @@ count PrunedLandmarkLabeling::queryImpl(node u, node v, node upperBound) const {
     return result;
 }
 
+bool PrunedLandmarkLabeling::isDistanceAtMost(node u, node v, node upperBound, count cutoff) const {
+    if (u == v)
+        return true; // 0 <= cutoff
+
+    auto [iterLabelsU, iterLabelsUEnd] = getSourceLabelsIterators(u, G->isDirected());
+    auto [iterLabelsV, iterLabelsVEnd] = getSourceLabelsIterators(v);
+
+    while (iterLabelsU != iterLabelsUEnd && iterLabelsV != iterLabelsVEnd) {
+        if (std::max(iterLabelsU->node_, iterLabelsV->node_) > upperBound)
+            break;
+
+        if (iterLabelsU->node_ < iterLabelsV->node_) {
+            ++iterLabelsU;
+        } else if (iterLabelsV->node_ < iterLabelsU->node_) {
+            ++iterLabelsV;
+        } else {
+            const count cand = iterLabelsU->distance_ + iterLabelsV->distance_;
+            if (cand <= cutoff)
+                return true; // ✅ early exit
+            ++iterLabelsU;
+            ++iterLabelsV;
+        }
+    }
+    return false;
+}
+
 count PrunedLandmarkLabeling::query(node u, node v) const {
     assureFinished();
     return queryImpl(u, v);

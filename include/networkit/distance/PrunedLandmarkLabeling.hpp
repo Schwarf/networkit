@@ -40,6 +40,7 @@ public:
 
 protected:
     count queryImpl(node u, node v, node upperBound = none) const;
+    bool isDistanceAtMost(node u, node v, node upperBound, count cutoff) const;
 
     static constexpr count infDist = std::numeric_limits<count>::max();
 

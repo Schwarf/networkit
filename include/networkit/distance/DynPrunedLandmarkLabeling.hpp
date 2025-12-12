@@ -61,6 +61,8 @@ private:
     void sortUpdatedLabels(bool reverse);
 
     std::vector<node> updatedNodes;
+    std::vector<node> frontierCur;
+    std::vector<node> frontierNext;
 };
 
 } // namespace NetworKit

@@ -18,6 +18,7 @@ option(NETWORKIT_CLANG_TIDY "Check code with clang-tidy" OFF)
 option(NETWORKIT_FLATINSTALL "Install into a flat directory structure (useful when building a Python package)" OFF)
 option(NETWORKIT_COVERAGE "Build with support for coverage" OFF)
 option(NETWORKIT_SANITY_CHECKS "Algorithms will perform further (expensive) checks" OFF)
+option(NETWORKIT_ENABLE_PROFILING "Add -g and -fno-omit-frame-pointer (good for perf)" OFF)
 set(NETWORKIT_PYTHON "" CACHE STRING "Directory containing Python.h. Implies MONOLITH=TRUE")
 set(NETWORKIT_NUMPY "" CACHE STRING "Directory containing Numpy.h.")
 set(NETWORKIT_PYTHON_SOABI "" CACHE STRING "Platform specific file extension. Implies MONOLITH=TRUE")
@@ -60,6 +61,12 @@ set(NETWORKIT_LINK_FLAGS "")
 
 if (NETWORKIT_QUIET_LOGGING)
 	set(NETWORKIT_CXX_FLAGS "-DNETWORKIT_QUIET_LOGGING")
+endif()
+
+if (NETWORKIT_ENABLE_PROFILING)
+	set(NETWORKIT_CXX_FLAGS "${NETWORKIT_CXX_FLAGS} -g -fno-omit-frame-pointer")
+	# optional but often useful too:
+	set(NETWORKIT_LINK_FLAGS "${NETWORKIT_LINK_FLAGS} -g")
 endif()
 
 if (NETWORKIT_RELEASE_LOGGING STREQUAL "AUTO")
