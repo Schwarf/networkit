@@ -17,16 +17,16 @@
 
 namespace NetworKit {
 
-template <typename WeightT, std::size_t N = 0>
+template <typename WeightT, count N = 0>
 struct DeviceGraph {
     static_assert(std::is_floating_point_v<WeightT>, "DeviceGraph<WeightT>: WeightT should be float or double.");
 
     static constexpr bool HasStaticN = (N != 0);
     static constexpr bool Prefer32 =
-        HasStaticN && (N <= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()));
+        HasStaticN && (N <= static_cast<count>(std::numeric_limits<std::uint32_t>::max()));
 
-    using node_t = std::conditional_t<Prefer32, std::uint32_t, std::uint64_t>;
-    using index_t = std::conditional_t<Prefer32, std::uint32_t, std::uint64_t>;
+    using node_t = std::conditional_t<Prefer32, std::uint32_t, node>;
+    using index_t = std::conditional_t<Prefer32, std::uint32_t, index>;
 
     std::vector<index_t> rowPointer;   // size n+1
     std::vector<node_t> columnIndices; // size m'
@@ -36,7 +36,7 @@ struct DeviceGraph {
     bool directed = false;
 };
 
-template <typename WeightT, std::size_t N = 0>
+template <typename WeightT, count N = 0>
 DeviceGraph<WeightT, N>
 buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuousNodeIds = true,
                  bool forceDefaultWeights = false, WeightT defaultWeight = WeightT{1}) {
@@ -102,23 +102,24 @@ buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuou
     const std::uint64_t numberOfStoredEdges = static_cast<std::uint64_t>(deviceGraph.rowPointer.back());
 
     // allocate
-    deviceGraph.columnIndices.resize(static_cast<std::size_t>(numberOfStoredEdges));
+    deviceGraph.columnIndices.resize(static_cast<count>(numberOfStoredEdges));
     if (deviceGraph.hasWeights)
-        deviceGraph.weights.resize(static_cast<std::size_t>(numberOfStoredEdges));
+        deviceGraph.weights.resize(static_cast<count>(numberOfStoredEdges));
     else
         deviceGraph.weights.clear();
 
-    // cursors per row (use 64-bit temp to avoid 32-bit wrap during increments)
-    std::vector<std::uint64_t> cursor(deviceGraph.rowPointer.size());
+    // Per-node write offsets into columnIndices/weights.
+    // Initialized to rowPointer[u] and incremented as we fill edges for node u.
+    std::vector<typename DG::index_t> writeOffset(deviceGraph.rowPointer.size());
     for (std::size_t i = 0; i < deviceGraph.rowPointer.size(); ++i) {
-        cursor[i] = static_cast<std::uint64_t>(deviceGraph.rowPointer[i]);
+        writeOffset[i] = static_cast<DG::index_t>(deviceGraph.rowPointer[i]);
     }
 
     // ---- pass 2: fill ----
     if (deviceGraph.hasWeights && graphHasWeights) {
         for (node u = 0; u < G.numberOfNodes(); ++u) {
             G.forNeighborsOf(u, [&](node v, edgeweight w) {
-                const auto pos = cursor[static_cast<std::size_t>(u)]++;
+                const auto pos = writeOffset[u]++;
                 deviceGraph.columnIndices[static_cast<std::size_t>(pos)] =
                     static_cast<typename DG::node_t>(v);
                 deviceGraph.weights[static_cast<std::size_t>(pos)] = static_cast<WeightT>(w);
@@ -127,7 +128,7 @@ buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuou
     } else if (deviceGraph.hasWeights && !graphHasWeights) {
         for (node u = 0; u < G.numberOfNodes(); ++u) {
             G.forNeighborsOf(u, [&](node v) {
-                const auto pos = cursor[static_cast<std::size_t>(u)]++;
+                const auto pos = writeOffset[static_cast<std::size_t>(u)]++;
                 deviceGraph.columnIndices[static_cast<std::size_t>(pos)] =
                     static_cast<typename DG::node_t>(v);
                 deviceGraph.weights[static_cast<std::size_t>(pos)] = defaultWeight;
@@ -136,7 +137,7 @@ buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuou
     } else {
         for (node u = 0; u < G.numberOfNodes(); ++u) {
             G.forNeighborsOf(u, [&](node v) {
-                const auto pos = cursor[static_cast<std::size_t>(u)]++;
+                const auto pos = writeOffset[static_cast<std::size_t>(u)]++;
                 deviceGraph.columnIndices[static_cast<std::size_t>(pos)] =
                     static_cast<typename DG::node_t>(v);
             });
