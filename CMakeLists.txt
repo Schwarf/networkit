@@ -280,6 +280,43 @@ if(NETWORKIT_BUILD_CORE AND NETWORKIT_MONOLITH)
 
 endif()
 
+
+option(NETWORKIT_BUILD_CUDA "Build CUDA GPU algorithms" OFF)
+
+if (NETWORKIT_BUILD_CUDA)
+	cmake_policy(SET CMP0104 NEW)
+	enable_language(CUDA)
+	find_package(CUDAToolkit REQUIRED)
+
+	# If the user/CI didn't set it, choose a reasonable portable default.
+	# You can tune this list. It should NOT be empty.
+	if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "")
+		# Portable-ish defaults:
+		# 75 = Turing, 86 = Ampere consumer, 89 = Ada consumer
+		set(CMAKE_CUDA_ARCHITECTURES 75 86 89 CACHE STRING
+				"CUDA architectures to build for (e.g. 86 or 75;86;89)" FORCE)
+	endif()
+
+	add_library(networkit_gpu OBJECT
+			networkit/cpp/gpu/SSSP.cu
+	)
+	target_include_directories(networkit_gpu PRIVATE ${PROJECT_SOURCE_DIR}/include)
+
+	set_target_properties(networkit_gpu PROPERTIES
+			CUDA_STANDARD 17
+			POSITION_INDEPENDENT_CODE ON
+	)
+
+	if (TARGET networkit)
+		target_sources(networkit PRIVATE $<TARGET_OBJECTS:networkit_gpu>)
+		target_compile_definitions(networkit PUBLIC NETWORKIT_HAVE_CUDA=1)
+		target_link_libraries(networkit PRIVATE CUDA::cudart)
+	else()
+		message(WARNING "NETWORKIT_BUILD_CUDA=ON but target 'networkit' does not exist; CUDA objects won't be linked.")
+	endif()
+endif()
+
+
 ################################################################################
 # ENABLE CLANG-TIDY
 if (NETWORKIT_CLANG_TIDY)
