@@ -1,10 +1,9 @@
 /*  DeviceGraph.hpp
-*
+ *
  *  Created on: 16.12.2025
  *  Authors: Andreas Scharf (andreas.b.scharf@gmail.com)
  *
  */
-
 
 #ifndef NETWORKIT_GPU_DEVICE_GRAPH_HPP_
 #define NETWORKIT_GPU_DEVICE_GRAPH_HPP_
@@ -148,6 +147,6 @@ DeviceGraph<WeightT, N> buildDeviceGraph(const Graph &G, bool requireContinuousN
     return deviceGraph;
 }
 
-} // namespace NetworKit
+} // namespace NetworKit::GPU
 
 #endif // NETWORKIT_GPU_DEVICE_GRAPH_HPP_
