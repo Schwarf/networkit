@@ -9,7 +9,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace NetworKit {
+namespace NetworKit::GPU {
 
 template <typename WeightT, count N = 0>
 struct DeviceGraph {
