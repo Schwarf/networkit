@@ -303,7 +303,8 @@ if (NETWORKIT_BUILD_CUDA)
 	target_include_directories(networkit_gpu PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 	set_target_properties(networkit_gpu PROPERTIES
-			CUDA_STANDARD 17
+			CUDA_STANDARD 20
+			CUDA_STANDARD_REQUIRED ON
 			POSITION_INDEPENDENT_CODE ON
 	)
 
