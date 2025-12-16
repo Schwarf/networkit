@@ -1,3 +1,11 @@
+/*  DeviceGraph.hpp
+*
+ *  Created on: 16.12.2025
+ *  Authors: Andreas Scharf (andreas.b.scharf@gmail.com)
+ *
+ */
+
+
 #ifndef NETWORKIT_GPU_DEVICE_GRAPH_HPP_
 #define NETWORKIT_GPU_DEVICE_GRAPH_HPP_
 
