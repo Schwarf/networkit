@@ -1,16 +1,10 @@
-/*  DeviceGraph.hpp
- *
- *  Created on: 16.12.2025
- *  Authors: Andreas Scharf (andreas.b.scharf@gmail.com)
- *
- */
-
-#ifndef NETWORKIT_GPU_DEVICEGRAPH_HPP
-#define NETWORKIT_GPU_DEVICEGRAPH_HPP
+#ifndef NETWORKIT_GPU_DEVICE_GRAPH_HPP_
+#define NETWORKIT_GPU_DEVICE_GRAPH_HPP_
 
 #include <networkit/graph/Graph.hpp>
 
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -19,7 +13,8 @@ namespace NetworKit {
 
 template <typename WeightT, count N = 0>
 struct DeviceGraph {
-    static_assert(std::is_floating_point_v<WeightT>, "DeviceGraph<WeightT>: WeightT should be float or double.");
+    static_assert(std::is_floating_point_v<WeightT>,
+                  "DeviceGraph<WeightT>: WeightT should be float or double.");
 
     static constexpr bool HasStaticN = (N != 0);
     static constexpr bool Prefer32 =
@@ -37,9 +32,8 @@ struct DeviceGraph {
 };
 
 template <typename WeightT, count N = 0>
-DeviceGraph<WeightT, N>
-buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuousNodeIds = true,
-                 bool forceDefaultWeights = false, WeightT defaultWeight = WeightT{1}) {
+DeviceGraph<WeightT, N> buildDeviceGraph(const Graph &G, bool requireContinuousNodeIds = true,
+                                         std::optional<WeightT> defaultWeight = std::nullopt) {
     using DG = DeviceGraph<WeightT, N>;
 
     DG deviceGraph;
@@ -55,7 +49,6 @@ buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuou
         }
     }
 
-    // For CUDA kernels you typically want compact node IDs [0..n-1]
     if (requireContinuousNodeIds) {
         if (G.upperNodeIdBound() != G.numberOfNodes()) {
             throw std::runtime_error("buildDeviceGraph: Graph node IDs are not continuous "
@@ -64,25 +57,28 @@ buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuou
         }
     }
 
-    // Check node ID range fits chosen DG::node_t
-    if ((G.upperNodeIdBound())
+    // node_t range check (note: node_t may be uint32_t or NetworKit::node)
+    if (G.upperNodeIdBound()
         > static_cast<index>(std::numeric_limits<typename DG::node_t>::max())) {
         throw std::runtime_error("buildDeviceGraph: node IDs do not fit into chosen node_t.");
     }
 
-    deviceGraph.rowPointer.assign(numberOfNodes + 1, 0);
+    deviceGraph.rowPointer.assign(static_cast<std::size_t>(numberOfNodes) + 1, 0);
 
-    deviceGraph.hasWeights = (storeWeights && graphHasWeights) || forceDefaultWeights;
+    // Weight policy:
+    // - weighted graph: store weights
+    // - unweighted graph: store weights iff defaultWeight provided
+    deviceGraph.hasWeights = graphHasWeights || defaultWeight.has_value();
 
     // ---- pass 1: degree count ----
-    for (node u = 0; u < G.numberOfNodes(); ++u) {
+    for (node u = 0; u < numberOfNodes; ++u) {
         count degree = 0;
         G.forNeighborsOf(u, [&](node /*v*/) { ++degree; });
 
         if (degree > static_cast<count>(std::numeric_limits<typename DG::index_t>::max())) {
             throw std::runtime_error("buildDeviceGraph: a node degree exceeds index_t capacity.");
         }
-        deviceGraph.rowPointer[u + 1] = static_cast<DG::index_t>(degree);
+        deviceGraph.rowPointer[static_cast<std::size_t>(u) + 1] = static_cast<DG::index_t>(degree);
     }
 
     // prefix sum -> rowPointer offsets
@@ -90,56 +86,53 @@ buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuou
         const std::uint64_t sum = static_cast<std::uint64_t>(deviceGraph.rowPointer[i])
                                   + static_cast<std::uint64_t>(deviceGraph.rowPointer[i - 1]);
 
-        if (sum > static_cast<count>(std::numeric_limits<typename DG::index_t>::max())) {
+        if (sum > static_cast<std::uint64_t>(std::numeric_limits<typename DG::index_t>::max())) {
             throw std::runtime_error(
-                "buildDeviceGraph: total stored edge count (m') exceeds index_t capacity. "
+                "buildDeviceGraph: total stored edge count exceeds index_t capacity. "
                 "Use 64-bit indices (e.g., buildDeviceGraph<WeightT, 0>), or change index_t.");
         }
         deviceGraph.rowPointer[i] = static_cast<DG::index_t>(sum);
     }
 
-    // Total number of CSR edge entries (directed edges; undirected graphs typically store both directions).
-    const std::uint64_t numberOfStoredEdges = static_cast<std::uint64_t>(deviceGraph.rowPointer.back());
+    // Total number of CSR edge entries (directed edges; undirected graphs typically store both
+    // directions).
+    const std::uint64_t numberOfStoredEdges =
+        static_cast<std::uint64_t>(deviceGraph.rowPointer.back());
 
-    // allocate
-    deviceGraph.columnIndices.resize(static_cast<count>(numberOfStoredEdges));
+    deviceGraph.columnIndices.resize(static_cast<std::size_t>(numberOfStoredEdges));
     if (deviceGraph.hasWeights)
-        deviceGraph.weights.resize(static_cast<count>(numberOfStoredEdges));
+        deviceGraph.weights.resize(static_cast<std::size_t>(numberOfStoredEdges));
     else
         deviceGraph.weights.clear();
 
     // Per-node write offsets into columnIndices/weights.
-    // Initialized to rowPointer[u] and incremented as we fill edges for node u.
     std::vector<typename DG::index_t> writeOffset(deviceGraph.rowPointer.size());
     for (std::size_t i = 0; i < deviceGraph.rowPointer.size(); ++i) {
-        writeOffset[i] = static_cast<DG::index_t>(deviceGraph.rowPointer[i]);
+        writeOffset[i] = deviceGraph.rowPointer[i];
     }
 
     // ---- pass 2: fill ----
-    if (deviceGraph.hasWeights && graphHasWeights) {
-        for (node u = 0; u < G.numberOfNodes(); ++u) {
+    if (graphHasWeights) {
+        for (node u = 0; u < numberOfNodes; ++u) {
             G.forNeighborsOf(u, [&](node v, edgeweight w) {
-                const auto pos = writeOffset[u]++;
-                deviceGraph.columnIndices[static_cast<std::size_t>(pos)] =
-                    static_cast<typename DG::node_t>(v);
-                deviceGraph.weights[static_cast<std::size_t>(pos)] = static_cast<WeightT>(w);
-            });
-        }
-    } else if (deviceGraph.hasWeights && !graphHasWeights) {
-        for (node u = 0; u < G.numberOfNodes(); ++u) {
-            G.forNeighborsOf(u, [&](node v) {
                 const auto pos = writeOffset[static_cast<std::size_t>(u)]++;
                 deviceGraph.columnIndices[static_cast<std::size_t>(pos)] =
-                    static_cast<typename DG::node_t>(v);
-                deviceGraph.weights[static_cast<std::size_t>(pos)] = defaultWeight;
+                    static_cast<DG::node_t>(v);
+                if (deviceGraph.hasWeights) {
+                    deviceGraph.weights[static_cast<std::size_t>(pos)] = static_cast<WeightT>(w);
+                }
             });
         }
     } else {
-        for (node u = 0; u < G.numberOfNodes(); ++u) {
+        // unweighted
+        for (node u = 0; u < numberOfNodes; ++u) {
             G.forNeighborsOf(u, [&](node v) {
                 const auto pos = writeOffset[static_cast<std::size_t>(u)]++;
                 deviceGraph.columnIndices[static_cast<std::size_t>(pos)] =
-                    static_cast<typename DG::node_t>(v);
+                    static_cast<DG::node_t>(v);
+                if (deviceGraph.hasWeights) {
+                    deviceGraph.weights[static_cast<std::size_t>(pos)] = *defaultWeight;
+                }
             });
         }
     }
@@ -149,4 +142,4 @@ buildDeviceGraph(const Graph &G, bool storeWeights = true, bool requireContinuou
 
 } // namespace NetworKit
 
-#endif // NETWORKIT_GPU_DEVICEGRAPH_HPP
+#endif // NETWORKIT_GPU_DEVICE_GRAPH_HPP_
