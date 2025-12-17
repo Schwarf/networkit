@@ -1,8 +1,60 @@
-//
-// Created by andreas on 17.12.25.
-//
+/*  DeviceGraphCSR.hpp
+ *
+ *  Created on: 17.12.2025
+ *  Authors: Andreas Scharf (andreas.b.scharf@gmail.com)
+ *
+ */
 
-#ifndef NETWORKIT_DEVICEGRAPHCSR_H
-#define NETWORKIT_DEVICEGRAPHCSR_H
+#ifndef NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP
+#define NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP
 
-#endif // NETWORKIT_DEVICEGRAPHCSR_H
+#include <networkit/gpu/HostGraphCSR.hpp>
+
+#include <cstdint>
+
+namespace NetworKit::GPU {
+
+template <typename WeightT, typename IndexT, typename NodeT>
+struct DeviceCSRView {
+    const IndexT*  rowPointer{};
+    const NodeT*   columnIndices{};
+    const WeightT* weights{};          // nullptr if not stored
+    NodeT          numberOfNodes{};
+    std::uint64_t  numberOfEdgeEntries{}; // CSR entries (m')
+};
+
+template <typename WeightT>
+class DeviceGraphCSR {
+public:
+    using HG      = HostGraphCSR<WeightT>;
+    using index_t = typename HG::index_t;
+    using node_t  = typename HG::node_t;
+
+    explicit DeviceGraphCSR(const HG& hostGraph);
+    ~DeviceGraphCSR();
+
+    DeviceGraphCSR(const DeviceGraphCSR&) = delete;
+    DeviceGraphCSR& operator=(const DeviceGraphCSR&) = delete;
+
+    DeviceGraphCSR(DeviceGraphCSR&&) noexcept;
+    DeviceGraphCSR& operator=(DeviceGraphCSR&&) noexcept;
+
+    DeviceCSRView<WeightT, index_t, node_t> view() const noexcept;
+
+    node_t n() const noexcept {
+        return numberOfNodes;
+    }
+
+private:
+    index_t* rowPointer{};
+    node_t*  columnIndices{};
+    WeightT* weights{}; // may be nullptr
+    node_t numberOfNodes{};
+    std::uint64_t numberOfEdgeEntries{};
+};
+
+} // namespace NetworKit::GPU
+
+#endif // NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP
+
+#endif // NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP_
