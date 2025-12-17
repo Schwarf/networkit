@@ -18,9 +18,9 @@ template <typename WeightT, typename IndexT, typename NodeT>
 struct DeviceCSRView {
     const IndexT*  rowPointer{};
     const NodeT*   columnIndices{};
-    const WeightT* weights{};          // nullptr if not stored
+    const WeightT* weights{};
     NodeT          numberOfNodes{};
-    std::uint64_t  numberOfEdgeEntries{}; // CSR entries (m')
+    std::uint64_t  numberOfEdgeEntries{};
 };
 
 template <typename WeightT>
@@ -48,13 +48,11 @@ public:
 private:
     index_t* rowPointer{};
     node_t*  columnIndices{};
-    WeightT* weights{}; // may be nullptr
+    WeightT* weights{};
     node_t numberOfNodes{};
     std::uint64_t numberOfEdgeEntries{};
 };
 
 } // namespace NetworKit::GPU
-
-#endif // NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP
 
 #endif // NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP_

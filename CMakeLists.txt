@@ -299,6 +299,7 @@ if (NETWORKIT_BUILD_CUDA)
 
 	add_library(networkit_gpu OBJECT
 			networkit/cpp/gpu/SSSP.cu
+			networkit/cpp/gpu/DeviceGraphCSR.cu
 	)
 	target_include_directories(networkit_gpu PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
