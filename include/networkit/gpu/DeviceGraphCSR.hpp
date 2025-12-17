@@ -5,12 +5,10 @@
  *
  */
 
-#ifndef NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP
-#define NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP
+#ifndef NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP_
+#define NETWORKIT_GPU_DEVICE_GRAPH_CSR_HPP_
 
 #include <networkit/gpu/HostGraphCSR.hpp>
-
-#include <cstdint>
 
 namespace NetworKit::GPU {
 

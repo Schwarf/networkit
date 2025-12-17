@@ -44,4 +44,4 @@ private:
 };
 
 } // namespace NetworKit::GPU
-#endif // NETWORKIT_SSSPRUNNER_HPP_
+#endif // NETWORKIT_GPU_SSSP_RUNNER_HPP_
