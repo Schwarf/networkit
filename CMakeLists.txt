@@ -319,9 +319,12 @@ if (NETWORKIT_BUILD_CUDA)
 	endif()
 
 	add_executable(sssp_demo networkit/cpp/gpu/sssp_demo.cpp)
+	add_executable(sssp_bench networkit/cpp/gpu/sssp_bench.cpp)
 	target_link_libraries(sssp_demo PRIVATE networkit)
+	target_link_libraries(sssp_bench PRIVATE networkit)
 	# IMPORTANT: pull in the CUDA objects that contain ssspWorklistCuda
 	target_sources(sssp_demo PRIVATE $<TARGET_OBJECTS:networkit_gpu>)
+	target_sources(sssp_bench PRIVATE $<TARGET_OBJECTS:networkit_gpu>)
 endif()
 
 

@@ -29,6 +29,7 @@ void runManySources(const NetworKit::Graph& G, std::vector<std::vector<Weight>> 
         result.push_back(dist);
     }
 }
+
 int main() {
 
     METISGraphReader reader;
