@@ -12,7 +12,6 @@
 #include <vector>
 
 namespace NetworKit::GPU {
-std::vector<float> ssspBatchCuda(const DeviceGraph<float> &graph,
-                                 const std::vector<DeviceGraph<float>::node_t> &sources);
+std::vector<float> ssspWorklistCuda(const DeviceGraph<float> &graph, DeviceGraph<float>::node_t source);
 }
 #endif // NETWORKIT_GPU_SSSP_HPP_

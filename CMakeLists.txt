@@ -4,7 +4,7 @@ project(networkit CXX)
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 	message(SEND_ERROR "In-source builds are not allowed.")
 endif("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
-
+set(CMAKE_CXX_STANDARD 20)
 # BUILD OPTIONS
 option(NETWORKIT_BUILD_CORE "Build NetworKit core library" ON)
 option(NETWORKIT_BUILD_TESTS "Build NetworKit C++ tests" OFF)
@@ -315,6 +315,11 @@ if (NETWORKIT_BUILD_CUDA)
 	else()
 		message(WARNING "NETWORKIT_BUILD_CUDA=ON but target 'networkit' does not exist; CUDA objects won't be linked.")
 	endif()
+
+	add_executable(sssp_demo networkit/cpp/gpu/sssp_demo.cpp)
+	target_link_libraries(sssp_demo PRIVATE networkit)
+	# IMPORTANT: pull in the CUDA objects that contain ssspWorklistCuda
+	target_sources(sssp_demo PRIVATE $<TARGET_OBJECTS:networkit_gpu>)
 endif()
 
 
