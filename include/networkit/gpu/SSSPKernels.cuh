@@ -1,0 +1,8 @@
+//
+// Created by andreas on 17.12.25.
+//
+
+#ifndef NETWORKIT_SSSPKERNELS_CUH
+#define NETWORKIT_SSSPKERNELS_CUH
+
+#endif // NETWORKIT_SSSPKERNELS_CUH
