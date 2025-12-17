@@ -1,6 +1,141 @@
 /*  SSSPRunner.cu
-*
+ *
  *  Created on: 17.12.2025
  *  Authors: Andreas Scharf (andreas.b.scharf@gmail.com)
  *
  */
+#include <networkit/gpu/CudaHelpers.hpp>
+#include <networkit/gpu/SSSPKernels.cuh>
+#include <networkit/gpu/SSSPRunner.hpp>
+
+#include <cuda_runtime.h>
+
+#include <limits>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+
+namespace NetworKit::GPU {
+
+template <>
+SsspRunner<float>::SsspRunner(const DeviceGraphCSR<float> &deviceGraph) {
+    view = deviceGraph.view();
+    numberOfNodes = view.numberOfNodes;
+
+    if (!view.weights) {
+        throw std::runtime_error("SsspRunner<float>: view.weights is null (no device weights).");
+    }
+    if (!view.rowPointer || !view.columnIndices) {
+        throw std::runtime_error("SsspRunner<float>: CSR pointers are null.");
+    }
+
+    cudaCheck(cudaMalloc(&deviceDistances, static_cast<std::size_t>(numberOfNodes) * sizeof(float)),
+              "cudaMalloc deviceDistances");
+
+    cudaCheck(cudaMalloc(&frontierPing, static_cast<std::size_t>(numberOfNodes) * sizeof(node_t)),
+              "cudaMalloc frontierPing");
+
+    cudaCheck(cudaMalloc(&frontierPong, static_cast<std::size_t>(numberOfNodes) * sizeof(node_t)),
+              "cudaMalloc frontierPong");
+
+    cudaCheck(cudaMalloc(&deviceFrontierCount, sizeof(std::uint32_t)),
+              "cudaMalloc deviceFrontierCount");
+}
+
+template <>
+SsspRunner<float>::~SsspRunner() {
+    if (deviceDistances)
+        cudaFree(deviceDistances);
+    if (frontierPing)
+        cudaFree(frontierPing);
+    if (frontierPong)
+        cudaFree(frontierPong);
+    if (deviceFrontierCount)
+        cudaFree(deviceFrontierCount);
+}
+
+template <>
+SsspRunner<float> &SsspRunner<float>::operator=(SsspRunner &&other) noexcept {
+    if (this == &other)
+        return *this;
+
+    deviceDistances = other.deviceDistances;
+    other.deviceDistances = nullptr;
+    frontierPing = other.frontierPing;
+    other.frontierPing = nullptr;
+    frontierPong = other.frontierPong;
+    other.frontierPong = nullptr;
+    deviceFrontierCount = other.deviceFrontierCount;
+    other.deviceFrontierCount = nullptr;
+
+    view = other.view;
+    numberOfNodes = other.numberOfNodes;
+
+    other.view = {};
+    other.numberOfNodes = 0;
+
+    return *this;
+}
+
+template <>
+SsspRunner<float>::SsspRunner(SsspRunner &&other) noexcept {
+    *this = std::move(other);
+}
+
+template <>
+std::vector<float> SsspRunner<float>::run(node_t src) {
+    if (src >= numberOfNodes) {
+        throw std::runtime_error("SsspRunner<float>::run: src out of range.");
+    }
+
+    // Baseline init: host dist -> device
+    std::vector<float> hostDistances(static_cast<std::size_t>(numberOfNodes),
+                                     std::numeric_limits<float>::infinity());
+    hostDistances[src] = 0.0f;
+
+    cudaCheck(cudaMemcpy(deviceDistances, hostDistances.data(),
+                         hostDistances.size() * sizeof(float), cudaMemcpyHostToDevice),
+              "memcpy deviceDistances init");
+
+    // current frontier = {src}
+    cudaCheck(cudaMemcpy(frontierPing, &src, sizeof(node_t), cudaMemcpyHostToDevice),
+              "memcpy frontier init");
+
+    std::uint32_t currentCount = 1;
+
+    node_t *currentFrontier = frontierPing;
+    node_t *nextFrontier = frontierPong;
+
+    constexpr int BLOCK = 256;
+
+    while (currentCount != 0) {
+        std::uint32_t zero = 0;
+        cudaCheck(
+            cudaMemcpy(deviceFrontierCount, &zero, sizeof(std::uint32_t), cudaMemcpyHostToDevice),
+            "reset deviceFrontierCount");
+
+        const int grid = (static_cast<int>(currentCount) + BLOCK - 1) / BLOCK;
+
+        relaxFromFrontierKernel<index_t, node_t>
+            <<<grid, BLOCK>>>(view.rowPointer, view.columnIndices, view.weights, deviceDistances,
+                              currentFrontier, currentCount, nextFrontier, deviceFrontierCount);
+        cudaCheck(cudaGetLastError(), "kernel launch");
+        cudaCheck(cudaDeviceSynchronize(), "kernel sync");
+
+        cudaCheck(cudaMemcpy(&currentCount, deviceFrontierCount, sizeof(std::uint32_t),
+                             cudaMemcpyDeviceToHost),
+                  "read deviceFrontierCount");
+
+        std::swap(currentFrontier, nextFrontier);
+    }
+
+    cudaCheck(cudaMemcpy(hostDistances.data(), deviceDistances,
+                         hostDistances.size() * sizeof(float), cudaMemcpyDeviceToHost),
+              "memcpy distances back");
+
+    return hostDistances;
+}
+
+template class SsspRunner<float>;
+
+} // namespace NetworKit::GPU

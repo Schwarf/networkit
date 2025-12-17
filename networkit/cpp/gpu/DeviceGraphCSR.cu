@@ -6,20 +6,14 @@
  */
 
 #include <networkit/gpu/DeviceGraphCSR.hpp>
+#include <networkit/gpu/CudaHelpers.hpp>
 
 #include <cuda_runtime.h>
 
 #include <cstddef>
 #include <stdexcept>
-#include <string>
 
 namespace NetworKit::GPU {
-
-static inline void cudaCheck(cudaError_t err, const char *what) {
-    if (err != cudaSuccess) {
-        throw std::runtime_error(std::string("CUDA error in ") + what + ": " + cudaGetErrorString(err));
-    }
-}
 
 template <typename WeightT>
 DeviceGraphCSR<WeightT>::DeviceGraphCSR(const HG &hostGraph) {
@@ -146,6 +140,6 @@ DeviceGraphCSR<WeightT>::view() const noexcept {
 }
 
 template class DeviceGraphCSR<float>;
-template class DeviceGraphCSR<double>;
+// template class DeviceGraphCSR<double>;
 
 } // namespace NetworKit::GPU

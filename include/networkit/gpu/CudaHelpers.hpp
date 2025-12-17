@@ -13,6 +13,7 @@
 #include <string>
 
 namespace NetworKit::GPU {
+
 inline void cudaCheck(cudaError_t error, const char *what) {
     if (error != cudaSuccess) {
         throw std::runtime_error(std::string("CUDA error in ") + what + ": "
