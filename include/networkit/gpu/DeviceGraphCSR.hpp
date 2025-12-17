@@ -1,0 +1,8 @@
+//
+// Created by andreas on 17.12.25.
+//
+
+#ifndef NETWORKIT_DEVICEGRAPHCSR_H
+#define NETWORKIT_DEVICEGRAPHCSR_H
+
+#endif // NETWORKIT_DEVICEGRAPHCSR_H

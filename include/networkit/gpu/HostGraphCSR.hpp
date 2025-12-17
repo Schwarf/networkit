@@ -1,12 +1,12 @@
-/*  DeviceGraph.hpp
+/*  HostGraphCSR.hpp
  *
  *  Created on: 16.12.2025
  *  Authors: Andreas Scharf (andreas.b.scharf@gmail.com)
  *
  */
 
-#ifndef NETWORKIT_GPU_DEVICE_GRAPH_HPP_
-#define NETWORKIT_GPU_DEVICE_GRAPH_HPP_
+#ifndef NETWORKIT_GPU_HOST_GRAPH_CSR_HPP_
+#define NETWORKIT_GPU_HOST_GRAPH_CSR_HPP_
 
 #include <networkit/graph/Graph.hpp>
 
@@ -19,7 +19,7 @@
 namespace NetworKit::GPU {
 
 template <typename WeightT, count N = 0>
-struct DeviceGraph {
+struct HostGraphCSR {
     static_assert(std::is_floating_point_v<WeightT>,
                   "DeviceGraph<WeightT>: WeightT should be float or double.");
 
@@ -30,18 +30,18 @@ struct DeviceGraph {
     using node_t = std::conditional_t<Prefer32, std::uint32_t, node>;
     using index_t = std::conditional_t<Prefer32, std::uint32_t, index>;
 
-    std::vector<index_t> rowPointer;   // size n+1
-    std::vector<node_t> columnIndices; // size m'
-    std::vector<WeightT> weights;      // size m' if hasWeights==true, else empty
+    std::vector<index_t> rowPointer;
+    std::vector<node_t> columnIndices;
+    std::vector<WeightT> weights;
 
     bool hasWeights = false;
     bool directed = false;
 };
 
 template <typename WeightT, count N = 0>
-DeviceGraph<WeightT, N> buildDeviceGraph(const Graph &G, bool requireContinuousNodeIds = true,
+HostGraphCSR<WeightT, N> buildHostGraphCSR(const Graph &G, bool requireContinuousNodeIds = true,
                                          std::optional<WeightT> defaultWeight = std::nullopt) {
-    using DG = DeviceGraph<WeightT, N>;
+    using DG = HostGraphCSR<WeightT, N>;
 
     DG deviceGraph;
     deviceGraph.directed = G.isDirected();
@@ -149,4 +149,4 @@ DeviceGraph<WeightT, N> buildDeviceGraph(const Graph &G, bool requireContinuousN
 
 } // namespace NetworKit::GPU
 
-#endif // NETWORKIT_GPU_DEVICE_GRAPH_HPP_
+#endif // NETWORKIT_GPU_HOST_GRAPH_CSR_HPP_

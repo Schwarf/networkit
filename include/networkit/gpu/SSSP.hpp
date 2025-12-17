@@ -8,10 +8,10 @@
 #ifndef NETWORKIT_GPU_SSSP_HPP_
 #define NETWORKIT_GPU_SSSP_HPP_
 
-#include "DeviceGraph.hpp"
+#include "HostGraphCSR.hpp"
 #include <vector>
 
 namespace NetworKit::GPU {
-std::vector<float> ssspWorklistCuda(const DeviceGraph<float> &graph, DeviceGraph<float>::node_t source);
+std::vector<float> ssspWorklistCuda(const HostGraphCSR<float> &graph, HostGraphCSR<float>::node_t source);
 }
 #endif // NETWORKIT_GPU_SSSP_HPP_

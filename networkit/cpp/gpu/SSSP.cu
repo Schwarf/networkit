@@ -67,14 +67,14 @@ __global__ void relaxFromFrontierKernel(const IndexT *__restrict__ rowPointer,
     }
 }
 
-std::vector<float> ssspWorklistCuda(const DeviceGraph<float> &g, DeviceGraph<float>::node_t src) {
+std::vector<float> ssspWorklistCuda(const HostGraphCSR<float> &g, HostGraphCSR<float>::node_t src) {
     if (!g.hasWeights) {
         throw std::runtime_error(
             "ssspWorklistCuda: DeviceGraph has no weights. Provide defaultWeight when building.");
     }
 
-    using index = DeviceGraph<float>::index_t;
-    using node = DeviceGraph<float>::node_t;
+    using index = HostGraphCSR<float>::index_t;
+    using node = HostGraphCSR<float>::node_t;
 
     const std::uint64_t n = static_cast<std::uint64_t>(g.rowPointer.size() - 1);
     const std::uint64_t m = static_cast<std::uint64_t>(g.columnIndices.size());

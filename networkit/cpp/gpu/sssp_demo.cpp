@@ -4,9 +4,9 @@
 #include <iostream>
 #include <limits>
 
-#include <networkit/graph/Graph.hpp>
-#include <networkit/gpu/DeviceGraph.hpp>
+#include <networkit/gpu/HostGraphCSR.hpp>
 #include <networkit/gpu/SSSP.hpp>
+#include <networkit/graph/Graph.hpp>
 
 using namespace NetworKit;
 
@@ -23,7 +23,7 @@ int main() {
     G.addEdge(2, 3, 1.0);
 
     // Build device-friendly CSR (weights exist in G so no default needed)
-    auto dg = GPU::buildDeviceGraph<float>(G, /*requireContinuousNodeIds=*/true);
+    auto dg = GPU::buildHostGraphCSR<float>(G, /*requireContinuousNodeIds=*/true);
 
     // Run SSSP from source 0 on the GPU
     auto distAll = NetworKit::GPU::ssspWorklistCuda(dg, 0);
