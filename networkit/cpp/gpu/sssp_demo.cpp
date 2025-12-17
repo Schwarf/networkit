@@ -12,7 +12,7 @@
 using namespace NetworKit;
 
 using Weight = float;
-void runManySources(const NetworKit::Graph& G) {
+void runManySources(const NetworKit::Graph& G, std::vector<std::vector<Weight>> & result) {
     // 1) Build CSR on host (one-time)
     auto hostGraph = GPU::buildHostGraphCSR<Weight>(G);
     // NetworKit::GPU::HostGraphCSR<Weight> hostCsr(G);
@@ -24,26 +24,29 @@ void runManySources(const NetworKit::Graph& G) {
     NetworKit::GPU::SsspRunner<Weight> runner(deviceGraph);
 
     // 4) Run many sources cheaply (only resets dist/frontier each run)
-    float total{};
-    for (NetworKit::node s = 0; s < 77 && s < G.numberOfNodes(); ++s) {
-        auto dist = runner.run(static_cast<NetworKit::GPU::SsspRunner<Weight>::node_t>(s));
-        total += std::accumulate(dist.begin(), dist.end(), Weight());
+    for (node source = 0; source < 77 && source < G.numberOfNodes(); ++source) {
+        auto dist = runner.run(static_cast<NetworKit::GPU::SsspRunner<Weight>::node_t>(source));
+        result.push_back(dist);
     }
-    std::cout << total << std::endl;
 }
 int main() {
 
     METISGraphReader reader;
     Graph graph = reader.read("/mnt/linux_data/projects/cpp/networkit/repo/networkit/input/lesmis.graph");
-    runManySources(graph);
+    std::vector<std::vector<Weight>> gpuResult;
+    runManySources(graph, gpuResult);
     FloydWarshall floydWarshall(graph);
     floydWarshall.run();
     double total{};
+    int count = 0;
     for(int i = 0; i < 77; ++i) {
         for(int j = 0; j < 77; ++j)
-            total += floydWarshall.getDistance(i, j);
+            if (static_cast<Weight>(floydWarshall.getDistance(i, j)) != gpuResult[i][j]) {
+                std::cout << "ERROR" << i << " " << j << " " << ++count << std::endl;
+            }
+        else
+            std::cout<< floydWarshall.getDistance(i, j) << "  " << gpuResult[i][j] << std::endl;
     }
-    std::cout << "FloydWarshall total: " << total << std::endl;
     return 0;
 }
 
