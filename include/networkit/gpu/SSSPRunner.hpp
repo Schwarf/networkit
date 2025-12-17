@@ -39,7 +39,7 @@ private:
     node_t *frontierPing{};
     node_t *frontierPong{};
     std::uint32_t *deviceFrontierCount{};
-
+    int* deviceQueued = nullptr;
     node_t numberOfNodes{};
 };
 

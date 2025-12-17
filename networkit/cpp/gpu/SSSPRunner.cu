@@ -40,18 +40,24 @@ SsspRunner<float>::SsspRunner(const DeviceGraphCSR<float> &deviceGraph) {
 
     cudaCheck(cudaMalloc(&deviceFrontierCount, sizeof(std::uint32_t)),
               "cudaMalloc deviceFrontierCount");
+
+    cudaCheck(cudaMalloc(&deviceQueued, static_cast<std::size_t>(numberOfNodes) * sizeof(int)),
+              "cudaMalloc deviceQueued");
 }
 
 template <>
 SsspRunner<float>::~SsspRunner() {
     if (deviceDistances)
-        cudaFree(deviceDistances);
+        cudaCheck(cudaFree(deviceDistances), "cudaFree deviceDistances");
     if (frontierPing)
-        cudaFree(frontierPing);
+        cudaCheck(cudaFree(frontierPing), "cudaFree frontierPing");
     if (frontierPong)
-        cudaFree(frontierPong);
+        cudaCheck(cudaFree(frontierPong), "cudaFree frontierPong");
     if (deviceFrontierCount)
-        cudaFree(deviceFrontierCount);
+        cudaCheck(cudaFree(deviceFrontierCount), "cudaFree deviceFrontierCount");
+    if (deviceQueued)
+        cudaCheck(cudaFree(deviceQueued), "cudaFree deviceQueued");
+
 }
 
 template <>
@@ -93,7 +99,7 @@ std::vector<float> SsspRunner<float>::run(node_t source) {
 
     // Device-side initialization
     initDistancesAndFrontierKernel<node_t, float><<<initGrid, BLOCK>>>(
-        deviceDistances, numberOfNodes, source, frontierPing, deviceFrontierCount);
+        deviceDistances, numberOfNodes, source, frontierPing, deviceFrontierCount, deviceQueued);
     cudaCheck(cudaGetLastError(), "init kernel launch");
     cudaCheck(cudaDeviceSynchronize(), "init kernel sync");
 
@@ -115,7 +121,7 @@ std::vector<float> SsspRunner<float>::run(node_t source) {
 
         relaxFromFrontierKernel<index_t, node_t>
             <<<grid, BLOCK>>>(view.rowPointer, view.columnIndices, view.weights, deviceDistances,
-                              currentFrontier, currentCount, nextFrontier, deviceFrontierCount);
+                              currentFrontier, currentCount, nextFrontier, deviceFrontierCount, deviceQueued);
         cudaCheck(cudaGetLastError(), "kernel launch");
         cudaCheck(cudaDeviceSynchronize(), "kernel sync");
 
