@@ -83,30 +83,27 @@ SsspRunner<float>::SsspRunner(SsspRunner &&other) noexcept {
 }
 
 template <>
-std::vector<float> SsspRunner<float>::run(node_t src) {
-    if (src >= numberOfNodes) {
+std::vector<float> SsspRunner<float>::run(node_t source) {
+    if (source >= numberOfNodes) {
         throw std::runtime_error("SsspRunner<float>::run: src out of range.");
     }
 
-    // Baseline init: host dist -> device
-    std::vector<float> hostDistances(static_cast<std::size_t>(numberOfNodes),
-                                     std::numeric_limits<float>::infinity());
-    hostDistances[src] = 0.0f;
+    constexpr int BLOCK = 256;
+    const int initGrid = (static_cast<int>(numberOfNodes) + BLOCK - 1) / BLOCK;
 
-    cudaCheck(cudaMemcpy(deviceDistances, hostDistances.data(),
-                         hostDistances.size() * sizeof(float), cudaMemcpyHostToDevice),
-              "memcpy deviceDistances init");
+    // Device-side initialization
+    initDistancesAndFrontierKernel<node_t, float><<<initGrid, BLOCK>>>(
+        deviceDistances, numberOfNodes, source, frontierPing, deviceFrontierCount);
+    cudaCheck(cudaGetLastError(), "init kernel launch");
+    cudaCheck(cudaDeviceSynchronize(), "init kernel sync");
 
-    // current frontier = {src}
-    cudaCheck(cudaMemcpy(frontierPing, &src, sizeof(node_t), cudaMemcpyHostToDevice),
-              "memcpy frontier init");
-
-    std::uint32_t currentCount = 1;
+    std::uint32_t currentCount = 0;
+    cudaCheck(cudaMemcpy(&currentCount, deviceFrontierCount, sizeof(std::uint32_t),
+                         cudaMemcpyDeviceToHost),
+              "read initial frontierCount");
 
     node_t *currentFrontier = frontierPing;
     node_t *nextFrontier = frontierPong;
-
-    constexpr int BLOCK = 256;
 
     while (currentCount != 0) {
         std::uint32_t zero = 0;
@@ -128,7 +125,7 @@ std::vector<float> SsspRunner<float>::run(node_t src) {
 
         std::swap(currentFrontier, nextFrontier);
     }
-
+    std::vector<float> hostDistances(static_cast<std::size_t>(numberOfNodes));
     cudaCheck(cudaMemcpy(hostDistances.data(), deviceDistances,
                          hostDistances.size() * sizeof(float), cudaMemcpyDeviceToHost),
               "memcpy distances back");

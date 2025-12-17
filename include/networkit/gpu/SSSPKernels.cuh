@@ -14,20 +14,20 @@
 namespace NetworKit::GPU {
 
 template <typename node_t, typename WeightT>
-__global__ void initDistancesAndFrontierKernel(WeightT *distances, node_t numberOfNodes, node_t src,
-                                               node_t *frontier, std::uint32_t *frontierCount) {
+__global__ void initDistancesAndFrontierKernel(WeightT *distances, node_t numberOfNodes,
+                                               node_t source, node_t *frontier,
+                                               std::uint32_t *frontierCount) {
 
     const node_t tid = static_cast<node_t>(blockIdx.x) * static_cast<node_t>(blockDim.x)
                        + static_cast<node_t>(threadIdx.x);
 
     if (tid < numberOfNodes) {
-        distances[tid] = CUDART_INF_F;
+        distances[tid] = (tid == source)?  0.0f : CUDART_INF_F;
     }
 
-    // single-thread initialization
+    // initialize source
     if (tid == 0) {
-        distances[src] = static_cast<WeightT>(0);
-        frontier[0] = src;
+        frontier[0] = source;
         *frontierCount = 1;
     }
 }

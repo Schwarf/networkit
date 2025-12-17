@@ -29,7 +29,7 @@ public:
     SsspRunner(SsspRunner &&) noexcept;
     SsspRunner &operator=(SsspRunner &&) noexcept;
 
-    std::vector<WeightT> run(node_t src);
+    std::vector<WeightT> run(node_t source);
 
 private:
     DeviceCSRView<WeightT, index_t, node_t> view{};

@@ -41,11 +41,11 @@ int main() {
     int count = 0;
     for(int i = 0; i < 77; ++i) {
         for(int j = 0; j < 77; ++j)
-            if (static_cast<Weight>(floydWarshall.getDistance(i, j)) != gpuResult[i][j]) {
+            if (static_cast<Weight>(floydWarshall.getDistance(i, j)) < gpuResult[i][j] || static_cast<Weight>(floydWarshall.getDistance(i, j)) > gpuResult[i][j] ) {
                 std::cout << "ERROR" << i << " " << j << " " << ++count << std::endl;
             }
-        else
-            std::cout<< floydWarshall.getDistance(i, j) << "  " << gpuResult[i][j] << std::endl;
+        // else
+        //     std::cout<< floydWarshall.getDistance(i, j) << "  " << gpuResult[i][j] << std::endl;
     }
     return 0;
 }
