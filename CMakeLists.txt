@@ -619,7 +619,7 @@ if (NETWORKIT_BUILD_BENCHMARKS AND NETWORKIT_MONOLITH)
 			networkit
 			)
 
-	set_target_properties(networkit_tests PROPERTIES
+	set_target_properties(networkit_benchmarks PROPERTIES
 			CXX_STANDARD ${NETWORKIT_CXX_STANDARD}
 			COMPILE_FLAGS "${NETWORKIT_CXX_FLAGS}"
 			LINK_FLAGS "${NETWORKIT_LINK_FLAGS}")

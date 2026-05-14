@@ -12,3 +12,6 @@ networkit_add_test(dyn_distance DynSSSPGTest
         auxiliary generators graph io)
 networkit_add_test(distance FloydWarshallGTest
         graph)
+
+networkit_add_gbenchmark(distance FloydWarshallBenchmark
+        graph)
