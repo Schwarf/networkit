@@ -616,7 +616,7 @@ if (NETWORKIT_BUILD_BENCHMARKS AND NETWORKIT_MONOLITH)
 	target_link_libraries(networkit_benchmarks
 			PRIVATE
 			benchmark_main benchmark
-			networkit
+			networkit OpenMP::OpenMP_CXX
 			)
 
 	set_target_properties(networkit_benchmarks PROPERTIES

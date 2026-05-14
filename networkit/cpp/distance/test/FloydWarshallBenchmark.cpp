@@ -76,58 +76,10 @@ static void BM_FloydWarshallPathGraph(benchmark::State &state) {
 
 BENCHMARK(BM_FloydWarshallCompleteGraph<WeightedGraph<uint64_t>>)
     ->Name("BM_FloydWarshallCompleteGraph<uint64_t,double>")
-    ->Arg(16)
-    ->Arg(32)
-    ->Arg(64)
-    ->Arg(128)
-    ->Arg(256)
-    ->Arg(512)
-    ->Arg(1024);
+    ->Arg(512);
+
 BENCHMARK(BM_FloydWarshallCompleteGraph<WeightedGraph<uint32_t>>)
     ->Name("BM_FloydWarshallCompleteGraph<uint32_t,double>")
-    ->Arg(16)
-    ->Arg(32)
-    ->Arg(64)
-    ->Arg(128)
-    ->Arg(256)
-    ->Arg(512)
-    ->Arg(1024);
-BENCHMARK(BM_FloydWarshallCompleteGraph<WeightedGraph<int32_t>>)
-    ->Name("BM_FloydWarshallCompleteGraph<int32_t,double>")
-    ->Arg(16)
-    ->Arg(32)
-    ->Arg(64)
-    ->Arg(128)
-    ->Arg(256)
-    ->Arg(512)
-    ->Arg(1024);
-
-BENCHMARK(BM_FloydWarshallPathGraph<WeightedGraph<uint64_t>>)
-    ->Name("BM_FloydWarshallPathGraph<uint64_t,double>")
-    ->Arg(16)
-    ->Arg(32)
-    ->Arg(64)
-    ->Arg(128)
-    ->Arg(256)
-    ->Arg(512)
-    ->Arg(1024);
-BENCHMARK(BM_FloydWarshallPathGraph<WeightedGraph<uint32_t>>)
-    ->Name("BM_FloydWarshallPathGraph<uint32_t,double>")
-    ->Arg(16)
-    ->Arg(32)
-    ->Arg(64)
-    ->Arg(128)
-    ->Arg(256)
-    ->Arg(512)
-    ->Arg(1024);
-BENCHMARK(BM_FloydWarshallPathGraph<WeightedGraph<int32_t>>)
-    ->Name("BM_FloydWarshallPathGraph<int32_t,double>")
-    ->Arg(16)
-    ->Arg(32)
-    ->Arg(64)
-    ->Arg(128)
-    ->Arg(256)
-    ->Arg(512)
-    ->Arg(1024);
+    ->Arg(512);
 
 } // namespace NetworKit
