@@ -26,7 +26,7 @@ Graph MTXGraphReader::read(std::string_view path) {
     auto current_edge = parser.getNext(weighted);
 
     while (current_edge.has_value()) {
-        WeightedEdge e = current_edge.value();
+        WeightedEdge<node, edgeweight> e = current_edge.value();
         G.addEdge(e.u, e.v, e.weight);
         current_edge = parser.getNext(weighted);
     }

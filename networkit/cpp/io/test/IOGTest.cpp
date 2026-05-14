@@ -1511,7 +1511,7 @@ TEST_F(IOGTest, testWriteReadNonContinuousUndirectedWeighted) {
         EXPECT_EQ(nbrR, nbrG) << "neighbors u=" << u;
     }
 
-    const std::vector<WeightedEdge> edges = {
+    const std::vector<WeightedEdge<node, edgeweight>> edges = {
         {0, 2, 2.0}, {0, 3, 1.5}, {2, 3, 3.25}, {2, 5, 0.75}, {3, 7, 4.0}, {5, 7, 2.5}, {0, 7, 9.0},
     };
 
