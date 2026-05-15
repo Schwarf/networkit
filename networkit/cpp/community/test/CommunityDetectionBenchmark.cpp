@@ -28,7 +28,7 @@ public:
     virtual ~CommunityDetectionBenchmark() = default;
 
 protected:
-    METISGraphReader metisReader;
+    METISGraphReader<> metisReader;
 };
 
 constexpr int runs = 12;

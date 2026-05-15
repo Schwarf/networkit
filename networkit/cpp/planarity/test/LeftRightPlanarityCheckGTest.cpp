@@ -377,7 +377,7 @@ TYPED_TEST(LeftRightPlanarityCheckTestFixture, testNonPlanarPetersenGraphs) {
     }
 }
 
-TEST(LeftRightPlanarityCheckGTest, testPlanar4eltGraph) {
+TYPED_TEST(LeftRightPlanarityCheckTestFixture, testPlanar4eltGraph) {
     METISGraphReader reader;
     auto graph = reader.read("input/4elt.graph");
     graph.indexEdges();
@@ -386,7 +386,7 @@ TEST(LeftRightPlanarityCheckGTest, testPlanar4eltGraph) {
     EXPECT_TRUE(test.isPlanar());
 }
 
-TEST(LeftRightPlanarityCheckGTest, testNonPlanarHepthGraph) {
+TYPED_TEST(LeftRightPlanarityCheckTestFixture, testNonPlanarHepthGraph) {
     METISGraphReader reader;
     auto graph = reader.read("input/hep-th.graph");
     graph.indexEdges();
@@ -395,7 +395,7 @@ TEST(LeftRightPlanarityCheckGTest, testNonPlanarHepthGraph) {
     EXPECT_FALSE(test.isPlanar());
 }
 
-TEST(LeftRightPlanarityCheckGTest, testPlanarAirfoil1Graph) {
+TYPED_TEST(LeftRightPlanarityCheckTestFixture, testPlanarAirfoil1Graph) {
     METISGraphReader reader;
     auto graph = reader.read("input/airfoil1.graph");
     graph.indexEdges();
@@ -404,7 +404,7 @@ TEST(LeftRightPlanarityCheckGTest, testPlanarAirfoil1Graph) {
     EXPECT_TRUE(test.isPlanar());
 }
 
-TEST(LeftRightPlanarityCheckGTest, testNonPlanarAstroPhGraph) {
+TYPED_TEST(LeftRightPlanarityCheckTestFixture, testNonPlanarAstroPhGraph) {
     METISGraphReader reader;
     auto graph = reader.read("input/astro-ph.graph");
     graph.indexEdges();
