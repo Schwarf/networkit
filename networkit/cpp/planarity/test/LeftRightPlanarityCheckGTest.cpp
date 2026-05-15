@@ -11,7 +11,7 @@
 
 namespace NetworKit {
 
-using GraphTypes = ::testing::Types<DynamicGraph<uint64_t, double>, DynamicGraph<int32_t, float>>;
+using GraphTypes = ::testing::Types<DynamicGraph<uint64_t>, DynamicGraph<int32_t>>;
 
 template <class GraphType>
 class LeftRightPlanarityCheckTestFixture : public testing::Test {

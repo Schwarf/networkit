@@ -51,7 +51,7 @@ class CurveballMaterialization;
  * @ingroup graph
  * A graph (with optional weights) and parallel iterator methods.
  */
-template <class NodeType, class EdgeWeightType>
+template <class NodeType, class EdgeWeightType = edgeweight>
 class DynamicGraph final {
     // graph attributes
     //!< current number of nodes
