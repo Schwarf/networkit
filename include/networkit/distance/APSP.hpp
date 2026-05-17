@@ -69,7 +69,7 @@ public:
 protected:
     const GraphType &G;
     std::vector<std::vector<EdgeWeightType>> distances;
-    std::vector<std::unique_ptr<SSSP>> sssps;
+    std::vector<std::unique_ptr<SSSPBase<GraphType>>> sssps;
 };
 
 template <typename GraphType>
@@ -82,9 +82,11 @@ void APSPBase<GraphType>::run() {
     {
         omp_index i = omp_get_thread_num();
         if (G.isWeighted())
-            sssps[i] = std::unique_ptr<SSSP>(new Dijkstra(G, 0, false));
+            sssps[i] =
+                std::make_unique<DijkstraBase<GraphType>>(G, static_cast<NodeType>(0), false);
         else
-            sssps[i] = std::unique_ptr<SSSP>(new BFS(G, 0, false));
+            sssps[i] =
+                std::make_unique<BFSBase<GraphType>>(G, static_cast<NodeType>(0), false);
     }
 
     G.parallelForNodes([&](NodeType source) {
