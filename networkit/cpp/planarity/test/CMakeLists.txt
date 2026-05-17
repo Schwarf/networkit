@@ -1,2 +1,2 @@
 networkit_add_test(planarity LeftRightPlanarityCheckGTest io)
-
+networkit_add_gbenchmark(planarity LeftRightPlanarityCheckBenchmark io)
