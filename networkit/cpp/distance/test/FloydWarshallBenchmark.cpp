@@ -15,19 +15,18 @@
 
 namespace NetworKit {
 
-template <class NodeType>
-using WeightedGraph = DynamicGraph<NodeType, double>;
 
 template <class GraphType>
 static GraphType completeWeightedGraph(count n) {
     using NodeType = typename GraphType::node_type;
+    using EdgeWeightType = typename GraphType::edge_weight_type;
 
     GraphType graph(n, true, false);
 
     for (count u = 0; u < n; ++u) {
         for (count v = u + 1; v < n; ++v) {
             graph.addEdge(static_cast<NodeType>(u), static_cast<NodeType>(v),
-                          static_cast<double>((u + v) % 17 + 1));
+                          static_cast<EdgeWeightType>((u + v) % 17 + 1));
         }
     }
 
@@ -37,12 +36,13 @@ static GraphType completeWeightedGraph(count n) {
 template <class GraphType>
 static GraphType pathWeightedGraph(count n) {
     using NodeType = typename GraphType::node_type;
+    using EdgeWeightType = typename GraphType::edge_weight_type;
 
     GraphType graph(n, true, false);
 
     for (count u = 1; u < n; ++u) {
         graph.addEdge(static_cast<NodeType>(u - 1), static_cast<NodeType>(u),
-                      static_cast<double>(u % 17 + 1));
+                      static_cast<EdgeWeightType>(u % 17 + 1));
     }
 
     return graph;
@@ -73,13 +73,24 @@ static void BM_FloydWarshallPathGraph(benchmark::State &state) {
     }
 
 }
-
-BENCHMARK(BM_FloydWarshallCompleteGraph<WeightedGraph<uint64_t>>)
+BENCHMARK(BM_FloydWarshallCompleteGraph<DynamicGraph<uint64_t, double>>)
     ->Name("BM_FloydWarshallCompleteGraph<uint64_t,double>")
-    ->Arg(512);
+    ->RangeMultiplier(2)
+    ->Range(16, 512);
 
-BENCHMARK(BM_FloydWarshallCompleteGraph<WeightedGraph<uint32_t>>)
+BENCHMARK(BM_FloydWarshallCompleteGraph<DynamicGraph<uint64_t, float>>)
+    ->Name("BM_FloydWarshallCompleteGraph<uint64_t,float>")
+    ->RangeMultiplier(2)
+    ->Range(16, 512);
+
+BENCHMARK(BM_FloydWarshallCompleteGraph<DynamicGraph<uint32_t, double>>)
     ->Name("BM_FloydWarshallCompleteGraph<uint32_t,double>")
-    ->Arg(512);
+    ->RangeMultiplier(2)
+    ->Range(16, 512);
+
+BENCHMARK(BM_FloydWarshallCompleteGraph<DynamicGraph<uint32_t, float>>)
+    ->Name("BM_FloydWarshallCompleteGraph<uint32_t,float>")
+    ->RangeMultiplier(2)
+    ->Range(16, 512);
 
 } // namespace NetworKit
