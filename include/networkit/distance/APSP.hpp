@@ -8,9 +8,13 @@
 #ifndef NETWORKIT_DISTANCE_APSP_HPP_
 #define NETWORKIT_DISTANCE_APSP_HPP_
 
+#include <omp.h>
+
 #include <memory>
 
 #include <networkit/base/Algorithm.hpp>
+#include <networkit/distance/BFS.hpp>
+#include <networkit/distance/Dijkstra.hpp>
 #include <networkit/distance/SSSP.hpp>
 #include <networkit/graph/Graph.hpp>
 
@@ -20,7 +24,10 @@ namespace NetworKit {
  * @ingroup distance
  * Class for all-pair shortest path algorithm.
  */
-class APSP : public Algorithm {
+template <typename GraphType>
+class APSPBase : public Algorithm {
+    using NodeType = typename GraphType::node_type;
+    using EdgeWeightType = typename GraphType::edge_weight_type;
 
 public:
     /**
@@ -28,9 +35,9 @@ public:
      *
      * @param G The graph.
      */
-    APSP(const Graph &G);
+    APSPBase(const GraphType &G) : Algorithm(), G(G) {}
 
-    ~APSP() override = default;
+    ~APSPBase() override = default;
 
     /**
      * Computes the shortest paths from each node to all other nodes.
@@ -44,7 +51,7 @@ public:
      * @return The shortest-path distances from each node to any other node in
      * the graph.
      */
-    const std::vector<std::vector<edgeweight>> &getDistances() const {
+    const std::vector<std::vector<EdgeWeightType>> &getDistances() const {
         assureFinished();
         return distances;
     }
@@ -54,16 +61,43 @@ public:
      * connected.
      *
      */
-    edgeweight getDistance(node u, node v) const {
+    EdgeWeightType getDistance(NodeType u, NodeType v) const {
         assureFinished();
         return distances[u][v];
     }
 
 protected:
-    const Graph &G;
-    std::vector<std::vector<edgeweight>> distances;
+    const GraphType &G;
+    std::vector<std::vector<EdgeWeightType>> distances;
     std::vector<std::unique_ptr<SSSP>> sssps;
 };
+
+template <typename GraphType>
+void APSPBase<GraphType>::run() {
+    const count n = G.upperNodeIdBound();
+    distances.assign(n, std::vector<EdgeWeightType>(n));
+
+    sssps.resize(omp_get_max_threads());
+#pragma omp parallel
+    {
+        omp_index i = omp_get_thread_num();
+        if (G.isWeighted())
+            sssps[i] = std::unique_ptr<SSSP>(new Dijkstra(G, 0, false));
+        else
+            sssps[i] = std::unique_ptr<SSSP>(new BFS(G, 0, false));
+    }
+
+    G.parallelForNodes([&](NodeType source) {
+        auto sssp = sssps[omp_get_thread_num()].get();
+        sssp->setSource(source);
+        sssp->run();
+        distances[source] = sssp->getDistances();
+    });
+
+    hasRun = true;
+}
+
+using APSP = APSPBase<Graph>;
 
 } /* namespace NetworKit */
 
