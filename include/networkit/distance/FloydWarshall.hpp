@@ -104,7 +104,7 @@ public:
      *
      * @return A matrix where entry [u][v] is the shortest distance from u to v.
      */
-    const std::vector<std::vector<edgeweight>> &getDistances() const;
+    const std::vector<std::vector<EdgeWeightType>> &getDistances() const;
 
 private:
     const GraphType *graph;
@@ -206,6 +206,13 @@ FloydWarshall<GraphType>::getNodesOnShortestPath(NodeType source, NodeType targe
     }
     path.push_back(target);
     return path;
+}
+
+template <class GraphType>
+const std::vector<std::vector<typename GraphType::edge_weight_type>> &
+FloydWarshall<GraphType>::getDistances() const {
+    assureFinished();
+    return distances;
 }
 } // namespace NetworKit
 
