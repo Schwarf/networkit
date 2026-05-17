@@ -1,14 +1,11 @@
 networkit_add_module(distance
     AffectedNodes.cpp
-    APSP.cpp
     AdamicAdarDistance.cpp
     AlgebraicDistance.cpp
-    BFS.cpp
     BidirectionalBFS.cpp
     BidirectionalDijkstra.cpp
     CommuteTimeDistance.cpp
     Diameter.cpp
-    Dijkstra.cpp
     Eccentricity.cpp
     EffectiveDiameter.cpp
     EffectiveDiameterApproximation.cpp
@@ -24,7 +21,6 @@ networkit_add_module(distance
     PrunedLandmarkLabeling.cpp
     ReverseBFS.cpp
     SPSP.cpp
-    SSSP.cpp
     Volume.cpp
     )
 
