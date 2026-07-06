@@ -12,7 +12,6 @@
 #include <concepts>
 #include <cstdint>
 #include <limits>
-#include <list>
 #include <span>
 #include <stdexcept>
 #include <type_traits>
@@ -42,37 +41,35 @@ concept IntegralValue = std::integral<T> && !std::same_as<std::remove_cvref_t<T>
 template <SignedIntegral KeyType = int64_t, IntegralValue ValueType = index>
 class BucketPQ : public PrioQueue<KeyType, ValueType> {
 private:
-    using Bucket = std::list<ValueType>;
     using BucketIndex = index;
 
     static constexpr KeyType noneKey = std::numeric_limits<KeyType>::max();
     static constexpr ValueType noneValue = std::numeric_limits<ValueType>::max();
     static constexpr BucketIndex noneBucket = std::numeric_limits<BucketIndex>::max();
 
-    std::vector<Bucket> buckets; // the actual buckets
-    inline static Bucket dummyBucket{};
-    inline static const typename Bucket::iterator invalidPtr = dummyBucket.end();
+    std::vector<ValueType> bucketHead;  // first value in each bucket
+    std::vector<ValueType> previous;    // previous value in the current bucket
+    std::vector<ValueType> next;        // next value in the current bucket
+    std::vector<BucketIndex> myBucket;  // keeps track of current bucket for each value
+    KeyType currentMinKey;              // current min key
+    KeyType currentMaxKey;              // current max key
+    KeyType minAdmissibleKey;           // minimum admissible key
+    KeyType maxAdmissibleKey;           // maximum admissible key
+    count numElems;                     // number of elements stored
+    KeyType offset;                     // offset from minAdmissibleKeys to 0
 
-    struct OptionalIterator {
-        bool valid;
-        typename Bucket::iterator iter;
-
-        void reset() {
-            valid = false;
-            iter = invalidPtr;
+    static index valueToIndex(ValueType value) {
+        if constexpr (std::is_signed_v<ValueType>) {
+            assert(value >= 0);
         }
-        OptionalIterator() { reset(); }
-        OptionalIterator(bool valid, typename Bucket::iterator iter) : valid(valid), iter(iter) {}
-    };
+        return static_cast<index>(value);
+    }
 
-    std::vector<OptionalIterator> nodePtr; // keeps track of node positions
-    std::vector<BucketIndex> myBucket;     // keeps track of current bucket for each value
-    KeyType currentMinKey;                 // current min key
-    KeyType currentMaxKey;                 // current max key
-    KeyType minAdmissibleKey;              // minimum admissible key
-    KeyType maxAdmissibleKey;              // maximum admissible key
-    count numElems;                        // number of elements stored
-    KeyType offset;                        // offset from minAdmissibleKeys to 0
+    static void assureCapacityFitsValueType(uint64_t capacity) {
+        if (capacity > static_cast<uint64_t>(noneValue)) {
+            throw std::invalid_argument("capacity cannot be represented by ValueType");
+        }
+    }
 
     /**
      * Constructor. Not to be used, only here for overriding.
@@ -92,10 +89,12 @@ private:
         if (minAdmissibleKey > maxAdmissibleKey) {
             throw std::invalid_argument("minAdmissibleKey cannot be larger than maxAdmissibleKey");
         }
+        assureCapacityFitsValueType(capacity);
 
         // init
-        buckets.resize(maxAdmissibleKey - minAdmissibleKey + 1);
-        nodePtr.resize(capacity);
+        bucketHead.assign(maxAdmissibleKey - minAdmissibleKey + 1, noneValue);
+        previous.assign(capacity, noneValue);
+        next.assign(capacity, noneValue);
         myBucket.assign(capacity, noneBucket);
         currentMinKey = noneKey;
         currentMaxKey = std::numeric_limits<KeyType>::min();
@@ -143,15 +142,17 @@ public:
     void insert(KeyType key, ValueType value) override {
         assert(minAdmissibleKey <= key && key <= maxAdmissibleKey);
 
-        const auto valueIdx = static_cast<index>(value);
-        if constexpr (std::is_signed_v<ValueType>) {
-            assert(value >= 0);
-        }
-        assert(valueIdx < nodePtr.size());
+        const auto valueIdx = valueToIndex(value);
+        assert(valueIdx < myBucket.size());
+        assert(myBucket[valueIdx] == noneBucket);
 
         const auto bucketIdx = static_cast<BucketIndex>(key + offset);
-        buckets[bucketIdx].push_front(value);
-        nodePtr[valueIdx] = OptionalIterator{true, buckets[bucketIdx].begin()};
+        next[valueIdx] = bucketHead[bucketIdx];
+        previous[valueIdx] = noneValue;
+        if (bucketHead[bucketIdx] != noneValue) {
+            previous[valueToIndex(bucketHead[bucketIdx])] = value;
+        }
+        bucketHead[bucketIdx] = value;
         myBucket[valueIdx] = bucketIdx;
         ++numElems;
 
@@ -171,7 +172,7 @@ public:
         if (empty())
             return {noneKey, noneValue};
         else
-            return {currentMinKey, buckets[currentMinKey + offset].front()};
+            return {currentMinKey, bucketHead[currentMinKey + offset]};
     }
 
     /**
@@ -181,7 +182,7 @@ public:
         if (empty())
             return {noneKey, noneValue};
 
-        ValueType result = buckets[currentMinKey + offset].front();
+        ValueType result = bucketHead[currentMinKey + offset];
 
         // store currentMinKey because remove(result) will change it
         KeyType oldMinKey = currentMinKey;
@@ -217,7 +218,7 @@ public:
         if constexpr (std::is_signed_v<ValueType>) {
             assert(value >= 0);
         }
-        return valueIdx < nodePtr.size() && nodePtr[valueIdx].valid;
+        return valueIdx < myBucket.size() && myBucket[valueIdx] != noneBucket;
     }
 
     /**
@@ -228,13 +229,25 @@ public:
         if constexpr (std::is_signed_v<ValueType>) {
             assert(value >= 0);
         }
-        assert(valueIdx < nodePtr.size());
+        assert(valueIdx < myBucket.size());
 
         if (myBucket[valueIdx] != noneBucket) {
-            // remove from appropriate bucket
-            BucketIndex bucketIdx = myBucket[valueIdx];
-            buckets[bucketIdx].erase(nodePtr[valueIdx].iter);
-            nodePtr[valueIdx].reset();
+            const BucketIndex bucketIdx = myBucket[valueIdx];
+            const ValueType previousValue = previous[valueIdx];
+            const ValueType nextValue = next[valueIdx];
+
+            if (previousValue != noneValue) {
+                next[valueToIndex(previousValue)] = nextValue;
+            } else {
+                bucketHead[bucketIdx] = nextValue;
+            }
+
+            if (nextValue != noneValue) {
+                previous[valueToIndex(nextValue)] = previousValue;
+            }
+
+            previous[valueIdx] = noneValue;
+            next[valueIdx] = noneValue;
             myBucket[valueIdx] = noneBucket;
             --numElems;
 
@@ -244,12 +257,14 @@ public:
                 currentMaxKey = std::numeric_limits<KeyType>::min();
             } else {
                 // adjust max pointer if necessary
-                while (buckets[currentMaxKey + offset].empty() && currentMaxKey > currentMinKey) {
+                while (bucketHead[currentMaxKey + offset] == noneValue
+                       && currentMaxKey > currentMinKey) {
                     --currentMaxKey;
                 }
 
                 // adjust min pointer if necessary
-                while (buckets[currentMinKey + offset].empty() && currentMinKey < currentMaxKey) {
+                while (bucketHead[currentMinKey + offset] == noneValue
+                       && currentMinKey < currentMaxKey) {
                     ++currentMinKey;
                 }
             }
