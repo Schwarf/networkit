@@ -95,6 +95,16 @@ public:
         storage.readBack(destination);
     }
 
+    /**
+     * Returns a borrowed backend-native handle to GPU-accessible storage:
+     * ValueType * for CUDA, or MTL::Buffer * for Metal. Backend execution code
+     * uses it to pass the allocation to kernels. A CUDA device pointer must not
+     * be dereferenced on the CPU.
+     *
+     * Ownership stays with this buffer; do not free the handle or use it after
+     * its allocation is released. This call performs no upload or synchronization.
+     * The caller must ensure GPU work completes before CPU access or destruction.
+     */
     decltype(auto) nativeHandle() { return storage.nativeHandle(); }
     decltype(auto) nativeHandle() const { return storage.nativeHandle(); }
 

@@ -15,7 +15,7 @@ namespace NetworKit::GPU {
 /**
  * Owns backend-managed graph storage in compressed sparse row (CSR) format.
  *
- * NodeT indexes nodes, OffsetT indexes adjacency entries, and WeightT stores
+ * DeviceNodeT indexes nodes, DeviceOffsetT indexes adjacency entries, and DeviceEdgeWeightT stores
  * edge weights. Node and offset widths are independent. Supported element types
  * and operations may be further restricted by the backend.
  *
@@ -32,22 +32,25 @@ namespace NetworKit::GPU {
  * storage can be reused. Updating or rebuilding it when the graph changes is
  * the caller's responsibility. No NetworKit Graph is owned.
  */
-template <class Backend, class NodeT, class OffsetT, class WeightT>
+template <class Backend, class DeviceNodeT, class DeviceOffsetT, class DeviceEdgeWeightT>
 class DeviceGraphCSR {
-    static_assert(std::is_same_v<NodeT, uint32_t> || std::is_same_v<NodeT, uint64_t>,
+    static_assert(std::is_same_v<DeviceNodeT, uint32_t> || std::is_same_v<DeviceNodeT, uint64_t>,
                   "CSR node indices must be uint32_t or uint64_t");
-    static_assert(std::is_same_v<OffsetT, uint32_t> || std::is_same_v<OffsetT, uint64_t>,
+    static_assert(std::is_same_v<DeviceOffsetT, uint32_t>
+                      || std::is_same_v<DeviceOffsetT, uint64_t>,
                   "CSR offsets must be uint32_t or uint64_t");
-    static_assert(std::is_floating_point_v<WeightT> || std::is_integral_v<WeightT>,
+    static_assert(std::is_floating_point_v<DeviceEdgeWeightT>
+                      || std::is_integral_v<DeviceEdgeWeightT>,
                   "CSR weights must be numeric");
 
 public:
-    using node_type = NodeT;
-    using offset_type = OffsetT;
-    using weight_type = WeightT;
+    using node_type = DeviceNodeT;
+    using offset_type = DeviceOffsetT;
+    using weight_type = DeviceEdgeWeightT;
 
     DeviceGraphCSR(typename Backend::Context &context, std::size_t nodes, std::size_t entries)
-        : DeviceGraphCSR(context, checkedShape(nodes, entries)) {}
+        : offsets(context, checkedRowOffsetCount(nodes, entries)), columns(context, entries),
+          values(context, entries) {}
 
     DeviceGraphCSR(const DeviceGraphCSR &) = delete;
     DeviceGraphCSR &operator=(const DeviceGraphCSR &) = delete;
@@ -57,14 +60,14 @@ public:
     std::size_t numberOfNodes() const { return offsets.size() == 0 ? 0 : offsets.size() - 1; }
     std::size_t numberOfEntries() const { return columns.size(); }
 
-    DeviceBuffer<Backend, OffsetT> &rowOffsets() { return offsets; }
-    const DeviceBuffer<Backend, OffsetT> &rowOffsets() const { return offsets; }
+    DeviceBuffer<Backend, DeviceOffsetT> &rowOffsets() { return offsets; }
+    const DeviceBuffer<Backend, DeviceOffsetT> &rowOffsets() const { return offsets; }
 
-    DeviceBuffer<Backend, NodeT> &columnIndices() { return columns; }
-    const DeviceBuffer<Backend, NodeT> &columnIndices() const { return columns; }
+    DeviceBuffer<Backend, DeviceNodeT> &columnIndices() { return columns; }
+    const DeviceBuffer<Backend, DeviceNodeT> &columnIndices() const { return columns; }
 
-    DeviceBuffer<Backend, WeightT> &weights() { return values; }
-    const DeviceBuffer<Backend, WeightT> &weights() const { return values; }
+    DeviceBuffer<Backend, DeviceEdgeWeightT> &weights() { return values; }
+    const DeviceBuffer<Backend, DeviceEdgeWeightT> &weights() const { return values; }
 
     void uploadToDevice() {
         offsets.uploadToDevice();
@@ -73,29 +76,22 @@ public:
     }
 
 private:
-    struct Shape {
-        std::size_t nodes;
-        std::size_t entries;
-    };
-
-    static Shape checkedShape(std::size_t nodes, std::size_t entries) {
+    // Validate both dimensions before constructing offsets, the first buffer.
+    static std::size_t checkedRowOffsetCount(std::size_t nodes, std::size_t entries) {
         if (nodes == std::numeric_limits<std::size_t>::max()
-            || (nodes > 0 && nodes - 1 > std::numeric_limits<NodeT>::max())) {
+            || (nodes > 0 && nodes - 1 > std::numeric_limits<DeviceNodeT>::max())) {
             throw std::length_error("DeviceGraphCSR: node count exceeds index capacity");
         }
-        if (entries > std::numeric_limits<OffsetT>::max()) {
+        if (entries > std::numeric_limits<DeviceOffsetT>::max()) {
             throw std::length_error("DeviceGraphCSR: entry count exceeds offset capacity");
         }
-        return {nodes, entries};
+        return nodes + 1;
     }
 
-    DeviceGraphCSR(typename Backend::Context &context, Shape shape)
-        : offsets(context, shape.nodes + 1), columns(context, shape.entries),
-          values(context, shape.entries) {}
-
-    DeviceBuffer<Backend, OffsetT> offsets;
-    DeviceBuffer<Backend, NodeT> columns;
-    DeviceBuffer<Backend, WeightT> values;
+    // Declaration order ensures validation precedes every buffer allocation.
+    DeviceBuffer<Backend, DeviceOffsetT> offsets;
+    DeviceBuffer<Backend, DeviceNodeT> columns;
+    DeviceBuffer<Backend, DeviceEdgeWeightT> values;
 };
 
 } // namespace NetworKit::GPU
