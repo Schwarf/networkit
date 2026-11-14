@@ -64,9 +64,6 @@ node randomNeighbor(const Graph &G, node u) {
     return G.getIthNeighbor(u, Aux::Random::integer(G.degree(u) - 1));
 }
 
-std::pair<node, node> size(const Graph &G) noexcept {
-    return {G.numberOfNodes(), G.numberOfEdges()};
-}
 
 double density(const Graph &G) noexcept {
     if (G.numberOfNodes() <= 1)

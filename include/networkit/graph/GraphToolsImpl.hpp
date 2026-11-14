@@ -46,25 +46,6 @@ GraphT::EdgeWeightT computeMaxWeightedDegree(const GraphT &G, bool inDegree) {
 }
 
 template <typename GraphT>
-GraphT::NodeT randomNode(const GraphT &G) {
-    using NodeT = typename GraphT::NodeT;
-    if (!G.numberOfNodes())
-        return  NullNodeId<NodeT>;
-
-    auto &gen = Aux::Random::getURNG();
-    std::uniform_int_distribution<NodeT> distr{NodeT{0},  static_cast<NodeT>(G.upperNodeIdBound() - 1)};
-    NodeT v;
-
-    do {
-        // When there are many deleted nodes, we might call Aux::Random::integer
-        // many times, and it is very expensive.
-        v = distr(gen);
-    } while (!G.hasNode(v));
-
-    return v;
-}
-
-template <typename GraphT>
 std::vector<typename GraphT::NodeT> randomNodes(const GraphT &G, count n) {
     using NodeT = typename GraphT::NodeT;
     assert(n <= G.numberOfNodes());
@@ -175,11 +156,47 @@ std::pair<typename GraphT::NodeT, typename GraphT::NodeT> randomEdge(const Graph
 }
 
 template<typename GraphT>
-GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u) {
-    if (!G.degree(u))
-        return NullNodeId<typename GraphT::NodeT>;
+std::vector<std::pair<typename GraphT::NodeT, typename GraphT::NodeT>> randomEdges(const GraphT &G, count nr) {
+    using NodeT = typename GraphT::NodeT;
+    if (!nr)
+        return {};
 
-    return G.getIthNeighbor(u, Aux::Random::integer(G.degree(u) - 1));
+    if (!G.numberOfEdges()) {
+        throw std::runtime_error(
+            "Graph has no edges to sample from. Add edges to the graph first.");
+    }
+
+    std::vector<std::pair<NodeT, NodeT>> edges;
+
+    auto &gen = Aux::Random::getURNG();
+    std::vector<count> outDeg(G.upperNodeIdBound());
+    G.forNodes([&outDeg, &G](const NodeT u) { outDeg[u] = G.degree(u); });
+
+    std::discrete_distribution<count> distribution(outDeg.begin(), outDeg.end());
+
+    for (index i = 0; i < nr; i++) {
+        NodeT u, v; // we will pick edge (u, v)
+        if (G.isDirected()) {
+            u = static_cast<NodeT>(distribution(gen));
+            // should always be the case as  without
+            // edges should have probability 0
+            assert(G.degree(u));
+            v = randomNeighbor(G, u);
+        } else {
+            // self-loops which appear only once in the outEdge arrays
+            // easiest way it to ignore edges (u, v) with u > v
+            do {
+                u = distribution(gen);
+                // should always be the case as  without
+                // edges should have probability 0
+                assert(G.degree(u));
+                v = randomNeighbor(G, u);
+            } while (u > v);
+        }
+        edges.emplace_back(u, v);
+    }
+
+    return edges;
 }
 
 

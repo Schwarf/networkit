@@ -5,6 +5,7 @@
  *      Author: Maximilian Vogel
  */
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <type_traits>
@@ -482,6 +483,84 @@ TYPED_TEST(GraphToolsTypedGTest, testRandomNeighbor) {
             const auto sampled = GraphTools::randomNeighbor(G, NodeT{7});
             static_assert(std::is_same_v<decltype(sampled), const NodeT>);
             ASSERT_TRUE(G.hasEdge(7, sampled));
+        }
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testRandomEdgesEmptyGraph) {
+    using NodeT = typename TestFixture::NodeT;
+    for (const bool directed : {false, true}) {
+        const typename TestFixture::GraphT empty(0, false, directed);
+        EXPECT_TRUE(GraphTools::randomEdges(empty, 0).empty());
+        EXPECT_THROW(GraphTools::randomEdges(empty, 1), std::runtime_error);
+
+        typename TestFixture::GraphT G(8, false, directed);
+        EXPECT_TRUE(GraphTools::randomEdges(G, 0).empty());
+        EXPECT_THROW(GraphTools::randomEdges(G, 1), std::runtime_error);
+        for (NodeT u = 0; u < 8; ++u)
+            G.removeNode(u);
+        EXPECT_TRUE(GraphTools::randomEdges(G, 0).empty());
+        EXPECT_THROW(GraphTools::randomEdges(G, 1), std::runtime_error);
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testRandomEdgesSampleWithReplacement) {
+    using NodeT = typename TestFixture::NodeT;
+    using Edge = std::pair<NodeT, NodeT>;
+    for (const bool directed : {false, true}) {
+        for (const bool selfLoop : {false, true}) {
+            typename TestFixture::GraphT G(16, true, directed);
+            G.removeNode(0);
+            G.removeNode(15);
+            const NodeT target = selfLoop ? 14 : 2;
+            G.addEdge(14, target, 5);
+            const Edge expected = directed ? Edge{14, target} : Edge{target, 14};
+
+            EXPECT_TRUE(GraphTools::randomEdges(G, 0).empty());
+            for (const count n : {count{1}, count{17}}) {
+                const auto edges = GraphTools::randomEdges(G, n);
+                static_assert(std::is_same_v<decltype(edges), const std::vector<Edge>>);
+                ASSERT_EQ(edges.size(), n);
+                for (const Edge &edge : edges)
+                    EXPECT_EQ(edge, expected);
+            }
+        }
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testRandomEdgesUniformWithDeletedNodesAndSelfLoops) {
+    using NodeT = typename TestFixture::NodeT;
+    using Edge = std::pair<NodeT, NodeT>;
+    constexpr count samples = 20000;
+    const std::array<Edge, 4> canonicalEdges{Edge{1, 14}, Edge{7, 14}, Edge{1, 7}, Edge{7, 7}};
+
+    for (const bool directed : {false, true}) {
+        for (const bool weighted : {false, true}) {
+            typename TestFixture::GraphT G(16, weighted, directed);
+            G.removeNode(0);
+            G.removeNode(3);
+            G.removeNode(15);
+            // Different weights and source degrees must not bias edge selection.
+            G.addEdge(1, 14, 1);
+            G.addEdge(14, 7, 3);
+            G.addEdge(7, 1, 2);
+            G.addEdge(7, 7, 4);
+
+            Aux::Random::setSeed(42, false);
+            const auto edges = GraphTools::randomEdges(G, samples);
+            ASSERT_EQ(edges.size(), samples);
+            std::array<count, 4> draws{};
+            for (const auto &[u, v] : edges) {
+                ASSERT_TRUE(G.hasEdge(u, v));
+                if (!directed)
+                    EXPECT_LE(u, v);
+                const Edge canonical{std::min(u, v), std::max(u, v)};
+                const auto it = std::ranges::find(canonicalEdges, canonical);
+                ASSERT_NE(it, canonicalEdges.end());
+                ++draws[static_cast<std::size_t>(it - canonicalEdges.begin())];
+            }
+            for (const count drawn : draws)
+                EXPECT_NEAR(static_cast<double>(drawn) / samples, 0.25, 0.015);
         }
     }
 }

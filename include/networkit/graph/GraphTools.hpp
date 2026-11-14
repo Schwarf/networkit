@@ -74,7 +74,23 @@ GraphT::EdgeWeightT maxWeightedInDegree(const GraphT &G) {
  * @return A random node.
  */
 template <typename GraphT>
-GraphT::NodeT randomNode(const GraphT &G);
+GraphT::NodeT randomNode(const GraphT &G) {
+    using NodeT = typename GraphT::NodeT;
+    if (!G.numberOfNodes())
+        return  NullNodeId<NodeT>;
+
+    auto &gen = Aux::Random::getURNG();
+    std::uniform_int_distribution<NodeT> distr{NodeT{0},  static_cast<NodeT>(G.upperNodeIdBound() - 1)};
+    NodeT v;
+
+    do {
+        // When there are many deleted nodes, we might call Aux::Random::integer
+        // many times, and it is very expensive.
+        v = distr(gen);
+    } while (!G.hasNode(v));
+
+    return v;
+}
 
 /**
  * Returns n distinct random nodes of the input graph.
@@ -94,7 +110,12 @@ std::vector<typename GraphT::NodeT> randomNodes(const GraphT &G, count n);
  * @return A random neighbor of @a u.
  */
 template<typename GraphT>
-GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u);
+GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u) {
+    if (!G.degree(u))
+        return NullNodeId<typename GraphT::NodeT>;
+
+    return G.getIthNeighbor(u, Aux::Random::integer(G.degree(u) - 1));
+}
 
 /**
  * Returns a random edge. By default a random node u is chosen and then
@@ -119,7 +140,8 @@ std::pair<typename GraphT::NodeT, typename GraphT::NodeT> randomEdge(const Graph
  * @param nr The number of random edges to be returned.
  * @return std::vector<std::pair<node, node>> Vector with random edges.
  */
-std::vector<std::pair<node, node>> randomEdges(const Graph &G, count nr);
+template<typename GraphT>
+std::vector<std::pair<typename GraphT::NodeT, typename GraphT::NodeT>> randomEdges(const GraphT &G, count nr);
 
 /**
  * Efficiently removes all the edges adjacent to a set of nodes that is
@@ -153,7 +175,10 @@ void removeEdgesFromIsolatedSet(Graph &G, InputIt first, InputIt last) {
  * @return std::pair<count, count> with the number of nodes and the number
  * of edges of the input graph.
  */
-std::pair<node, node> size(const Graph &G) noexcept;
+template<typename GraphT>
+std::pair<typename GraphT::NodeT, typename GraphT::NodeT> size(const GraphT &G) noexcept {
+    return {G.numberOfNodes(), G.numberOfEdges()};
+}
 
 /**
  * Return the density of the input graph.
@@ -162,7 +187,15 @@ std::pair<node, node> size(const Graph &G) noexcept;
  *
  * @return double The density of the input graph.
  */
-double density(const Graph &G) noexcept;
+template<typename GraphT>
+double density(const GraphT &G) noexcept {
+    if (G.numberOfNodes() <= 1)
+        return 0;
+    const auto n = static_cast<double>(G.numberOfNodes());
+    const auto m =
+        static_cast<double>((G.numberOfEdges() - G.numberOfSelfLoops()) * (G.isDirected() ? 1 : 2));
+    return m / (n * (n - 1));
+}
 
 /**
  * Returns the volume of the input graph.
