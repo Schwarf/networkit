@@ -93,7 +93,8 @@ std::vector<typename GraphT::NodeT> randomNodes(const GraphT &G, count n);
  * @param u Node.
  * @return A random neighbor of @a u.
  */
-node randomNeighbor(const Graph &G, node u);
+template<typename GraphT>
+GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u);
 
 /**
  * Returns a random edge. By default a random node u is chosen and then
@@ -107,7 +108,8 @@ node randomNeighbor(const Graph &G, node u);
  * random.
  * @return std::pair<node, node> A random edge.
  */
-std::pair<node, node> randomEdge(const Graph &G, bool uniformDistribution = false);
+template<typename GraphT>
+std::pair<typename GraphT::NodeT, typename GraphT::NodeT> randomEdge(const GraphT &G, bool uniformDistribution = false);
 
 /**
  * Returns a vector with @a nr random edges. The edges are chosen uniformly

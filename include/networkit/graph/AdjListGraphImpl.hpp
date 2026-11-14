@@ -873,7 +873,7 @@ AdjListGraph<NodeT, EdgeWeightT>::computeWeightedDegree(NodeT u, bool inDegree,
                                                         bool countSelfLoopsTwice) const {
     if (weighted) {
         EdgeWeightT sum{0};
-        auto sumWeights = [&](NodeT v, EdgeWeightT w) {
+        auto sumWeights = [&](NodeT, NodeT v, EdgeWeightT w, edgeid) {
             sum += (countSelfLoopsTwice && u == v) ? EdgeWeightT{2} * w : w;
         };
         if (inDegree) {

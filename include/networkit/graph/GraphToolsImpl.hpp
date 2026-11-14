@@ -17,7 +17,8 @@ count computeMaxDegree(const GraphT &G, bool inDegree) {
 #ifndef NETWORKIT_OMP2
 #pragma omp parallel for reduction(max : result)
     for (omp_index u = 0; u < static_cast<omp_index>(G.upperNodeIdBound()); ++u) {
-        result = std::max(result, inDegree ? G.degreeIn(u) : G.degreeOut(u));
+        if (G.hasNode(u))
+            result = std::max(result, inDegree ? G.degreeIn(u) : G.degreeOut(u));
     }
 #else
     G.forNodes([&](const GraphT::NodeT u) {
@@ -33,7 +34,8 @@ GraphT::EdgeWeightT computeMaxWeightedDegree(const GraphT &G, bool inDegree) {
 #ifndef NETWORKIT_OMP2
 #pragma omp parallel for reduction(max : result)
     for (omp_index u = 0; u < static_cast<omp_index>(G.upperNodeIdBound()); ++u) {
-        result = std::max(result, inDegree ? G.weightedDegreeIn(u) : G.weightedDegree(u));
+        if (G.hasNode(u))
+            result = std::max(result, inDegree ? G.weightedDegreeIn(u) : G.weightedDegree(u));
     }
 #else
     G.forNodes([&](const GraphT::NodeT u) {
@@ -100,6 +102,84 @@ std::vector<typename GraphT::NodeT> randomNodes(const GraphT &G, count n) {
         }
     }
     return selectedNodes;
+}
+
+template <typename GraphT>
+std::pair<typename GraphT::NodeT, typename GraphT::NodeT> randomEdge(const GraphT &G,
+                                                                     bool uniformDistribution) {
+    using NodeT = typename GraphT::NodeT;
+    if (!G.numberOfEdges()) {
+        throw std::runtime_error("Error: the graph has no edges!");
+    }
+
+    if (uniformDistribution) {
+        /*
+         * The simple idea here is to interpret all neighborhoods next to each other, resulting
+         * in a virtual vector of size m. Then we draw a random index and return the edge.
+         * For undirected edges, the vector has size 2m; but the idea remains. There is one minor
+         * complication for undirected edges with self-loops: each edge {u,v} with u != v is stored
+         * twice (once in the neighborhood of u, once in v) but a loop (u, u) is only stored once.
+         * To equalize the probabilities we reject edges {u,v} with u > v and try again. This leads
+         * to less than two expected trails in and is only done for undirected graphs with
+         * self-loops.
+         */
+
+        do {
+            const auto upper =
+                G.isDirected() ? G.numberOfEdges() : 2 * G.numberOfEdges() - G.numberOfSelfLoops();
+            auto idx = Aux::Random::index(upper);
+
+            NodeT u, v;
+
+            if (idx > upper / 2) {
+                // assuming degrees are somewhat distributed uniformly, it's better to start with
+                // larger nodes for large indices. In this case we have to mirror the index:
+                idx = (upper - 1) - idx;
+
+                for (u = static_cast<NodeT>(G.upperNodeIdBound() - 1);
+                     !G.hasNode(u) || idx >= G.degree(u); --u) {
+                    if (G.hasNode(u))
+                        idx -= G.degree(u);
+                }
+
+                v = G.getIthNeighbor(u, G.degree(u) - 1 - idx);
+
+            } else {
+                for (u = 0; !G.hasNode(u) || idx >= G.degree(u); ++u) {
+                    assert(u < G.upperNodeIdBound());
+                    if (G.hasNode(u))
+                        idx -= G.degree(u);
+                }
+
+                v = G.getIthNeighbor(u, idx);
+            }
+
+            if (G.numberOfSelfLoops() && !G.isDirected() && u > v)
+                // reject (see above)
+                continue;
+
+            return {u, v};
+        } while (true);
+    }
+
+    NodeT u; // we will return edge (u, v)
+
+    // fast way, but not a uniform random edge!
+    do {
+        u = GraphTools::randomNode(G);
+    } while (!G.degree(u));
+
+    const NodeT v = G.getIthNeighbor(u, Aux::Random::integer(G.degree(u) - 1));
+
+    return {u, v};
+}
+
+template<typename GraphT>
+GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u) {
+    if (!G.degree(u))
+        return NullNodeId<typename GraphT::NodeT>;
+
+    return G.getIthNeighbor(u, Aux::Random::integer(G.degree(u) - 1));
 }
 
 

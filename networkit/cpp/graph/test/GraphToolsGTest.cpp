@@ -6,7 +6,12 @@
  */
 
 #include <array>
+#include <cstdint>
+#include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -300,6 +305,229 @@ TEST_P(GraphToolsGTest, testRandomEdge) {
     for (node id = 0; id < m; id++) {
         double p = static_cast<double>(drawCounts[id]) / static_cast<double>(samples);
         ASSERT_NEAR(1.0 / m, p, maxAbsoluteError);
+    }
+}
+
+template <typename NodeT_, typename EdgeWeightT_>
+struct GraphToolsTestConfig {
+    using NodeT = NodeT_;
+    using EdgeWeightT = EdgeWeightT_;
+};
+
+template <typename Config>
+class GraphToolsTypedGTest : public testing::Test {
+public:
+    using NodeT = typename Config::NodeT;
+    using EdgeWeightT = typename Config::EdgeWeightT;
+    using GraphT = AdjListGraph<NodeT, EdgeWeightT>;
+
+    static_assert(
+        std::is_same_v<decltype(GraphTools::maxDegree(std::declval<const GraphT &>())), count>);
+    static_assert(
+        std::is_same_v<decltype(GraphTools::maxInDegree(std::declval<const GraphT &>())), count>);
+    static_assert(
+        std::is_same_v<decltype(GraphTools::maxWeightedDegree(std::declval<const GraphT &>())),
+                       EdgeWeightT>);
+    static_assert(
+        std::is_same_v<decltype(GraphTools::maxWeightedInDegree(std::declval<const GraphT &>())),
+                       EdgeWeightT>);
+};
+
+using GraphToolsTestTypes =
+    testing::Types<GraphToolsTestConfig<node, edgeweight>, GraphToolsTestConfig<int, int>,
+                   GraphToolsTestConfig<int, float>, GraphToolsTestConfig<uint16_t, double>,
+                   GraphToolsTestConfig<uint32_t, uint8_t>,
+                   GraphToolsTestConfig<uint64_t, uint64_t>>;
+TYPED_TEST_SUITE(GraphToolsTypedGTest, GraphToolsTestTypes);
+
+TYPED_TEST(GraphToolsTypedGTest, testDegreesOfEmptyGraphs) {
+    for (const bool directed : {false, true}) {
+        for (const count n : {count{0}, count{4}}) {
+            const typename TestFixture::GraphT G(n, true, directed);
+            EXPECT_EQ(GraphTools::maxDegree(G), 0);
+            EXPECT_EQ(GraphTools::maxInDegree(G), 0);
+            EXPECT_EQ(GraphTools::maxWeightedDegree(G), 0);
+            EXPECT_EQ(GraphTools::maxWeightedInDegree(G), 0);
+        }
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testDirectedDegrees) {
+    typename TestFixture::GraphT G(6, true, true);
+    G.addEdge(0, 1, 2);
+    G.addEdge(0, 2, 3);
+    G.addEdge(1, 2, 4);
+    G.addEdge(3, 2, 5);
+    G.addEdge(4, 0, 1);
+
+    EXPECT_EQ(GraphTools::maxDegree(G), 2);
+    EXPECT_EQ(GraphTools::maxInDegree(G), 3);
+    EXPECT_EQ(GraphTools::maxWeightedDegree(G), 5);
+    EXPECT_EQ(GraphTools::maxWeightedInDegree(G), 12);
+
+    // The helper defaults and the explicit in-degree branch must agree with the public APIs.
+    EXPECT_EQ(GraphTools::computeMaxDegree(G), 2);
+    EXPECT_EQ(GraphTools::computeMaxDegree(G, true), 3);
+    EXPECT_EQ(GraphTools::computeMaxWeightedDegree(G), 5);
+    EXPECT_EQ(GraphTools::computeMaxWeightedDegree(G, true), 12);
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testUndirectedDegreesAndSelfLoops) {
+    for (const bool weighted : {false, true}) {
+        typename TestFixture::GraphT G(4, weighted);
+        G.addEdge(0, 1, 2);
+        G.addEdge(0, 2, 3);
+        G.addEdge(0, 0, 4);
+        EXPECT_EQ(GraphTools::maxDegree(G), 3);
+        EXPECT_EQ(GraphTools::maxInDegree(G), 3);
+        EXPECT_EQ(GraphTools::maxWeightedDegree(G), weighted ? 9 : 3);
+        EXPECT_EQ(GraphTools::maxWeightedInDegree(G), weighted ? 9 : 3);
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testFractionalWeightedDegrees) {
+    using EdgeWeightT = typename TestFixture::EdgeWeightT;
+    if constexpr (std::is_floating_point_v<EdgeWeightT>) {
+        typename TestFixture::GraphT G(3, true, true);
+        G.addEdge(0, 1, EdgeWeightT{0.25});
+        G.addEdge(0, 2, EdgeWeightT{0.5});
+        G.addEdge(1, 2, EdgeWeightT{1.25});
+        EXPECT_EQ(GraphTools::maxWeightedDegree(G), EdgeWeightT{1.25});
+        EXPECT_EQ(GraphTools::maxWeightedInDegree(G), EdgeWeightT{1.75});
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testDegreesWithDeletedNodes) {
+    typename TestFixture::GraphT G(8, true, true);
+    G.addEdge(1, 7, 2);
+    G.addEdge(3, 7, 4);
+    G.removeNode(0);
+    G.removeNode(2);
+    G.removeNode(6);
+    EXPECT_EQ(GraphTools::maxDegree(G), 1);
+    EXPECT_EQ(GraphTools::maxInDegree(G), 2);
+    EXPECT_EQ(GraphTools::maxWeightedDegree(G), 4);
+    EXPECT_EQ(GraphTools::maxWeightedInDegree(G), 6);
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testRandomNodeEmptyAndSingleton) {
+    using NodeT = typename TestFixture::NodeT;
+    typename TestFixture::GraphT G(8);
+    for (NodeT u = 0; u < 7; ++u)
+        G.removeNode(u);
+    for (count i = 0; i < 20; ++i) {
+        const auto sampled = GraphTools::randomNode(G);
+        static_assert(std::is_same_v<decltype(sampled), const NodeT>);
+        EXPECT_EQ(sampled, 7);
+    }
+    G.removeNode(7);
+    EXPECT_EQ(GraphTools::randomNode(G), NullNodeId<NodeT>);
+    EXPECT_EQ(GraphTools::randomNode(typename TestFixture::GraphT{}), NullNodeId<NodeT>);
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testRandomNodeWithDeletedNodes) {
+    using NodeT = typename TestFixture::NodeT;
+    typename TestFixture::GraphT G(16);
+    for (NodeT u = 0; u < 16; ++u) {
+        if (u != 1 && u != 7 && u != 14)
+            G.removeNode(u);
+    }
+    Aux::Random::setSeed(42, false);
+    std::array<count, 16> draws{};
+    for (count i = 0; i < 10000; ++i) {
+        const auto sampled = GraphTools::randomNode(G);
+        ASSERT_TRUE(G.hasNode(sampled));
+        ++draws[sampled];
+    }
+    for (const NodeT u : G.nodeRange())
+        EXPECT_NEAR(static_cast<double>(draws[u]) / 10000, 1.0 / 3, 0.025);
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testRandomNodesWithDeletedNodes) {
+    using NodeT = typename TestFixture::NodeT;
+    typename TestFixture::GraphT G(16);
+    for (NodeT u = 0; u < 16; ++u) {
+        if (u != 1 && u != 4 && u != 7 && u != 14)
+            G.removeNode(u);
+    }
+    Aux::Random::setSeed(42, false);
+    // Exercise no sampling, direct sampling, complement sampling, and copying all nodes.
+    for (const count n : {count{0}, count{1}, count{2}, count{3}, count{4}}) {
+        const auto sampled = GraphTools::randomNodes(G, n);
+        static_assert(std::is_same_v<decltype(sampled), const std::vector<NodeT>>);
+        EXPECT_EQ(sampled.size(), n);
+        const std::unordered_set<NodeT> unique(sampled.begin(), sampled.end());
+        EXPECT_EQ(unique.size(), n);
+        for (const NodeT u : sampled)
+            EXPECT_TRUE(G.hasNode(u));
+    }
+    EXPECT_TRUE(GraphTools::randomNodes(typename TestFixture::GraphT{}, 0).empty());
+    for (const NodeT u : std::vector<NodeT>{1, 4, 7, 14})
+        G.removeNode(u);
+    EXPECT_TRUE(GraphTools::randomNodes(G, 0).empty());
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testRandomNeighbor) {
+    using NodeT = typename TestFixture::NodeT;
+    for (const bool directed : {false, true}) {
+        typename TestFixture::GraphT G(16, false, directed);
+        G.removeNode(0);
+        G.addEdge(1, 7);
+        G.addEdge(7, 14);
+        G.addEdge(7, 7);
+        EXPECT_EQ(GraphTools::randomNeighbor(G, NodeT{4}), NullNodeId<NodeT>);
+        EXPECT_EQ(GraphTools::randomNeighbor(G, NodeT{1}), 7);
+        Aux::Random::setSeed(42, false);
+        for (count i = 0; i < 100; ++i) {
+            const auto sampled = GraphTools::randomNeighbor(G, NodeT{7});
+            static_assert(std::is_same_v<decltype(sampled), const NodeT>);
+            ASSERT_TRUE(G.hasEdge(7, sampled));
+        }
+    }
+}
+
+template <typename NodeT>
+class GraphToolsRandomEdgeGTest : public testing::Test {};
+
+using RandomEdgeNodeTypes = testing::Types<int, uint16_t, uint32_t, uint64_t>;
+TYPED_TEST_SUITE(GraphToolsRandomEdgeGTest, RandomEdgeNodeTypes);
+
+TYPED_TEST(GraphToolsRandomEdgeGTest, testEmptyGraph) {
+    const AdjListGraph<TypeParam, double> G(4);
+    EXPECT_THROW(GraphTools::randomEdge(G), std::runtime_error);
+    EXPECT_THROW(GraphTools::randomEdge(G, true), std::runtime_error);
+}
+
+TYPED_TEST(GraphToolsRandomEdgeGTest, testDeletedNodesAndSelfLoops) {
+    for (const bool directed : {false, true}) {
+        AdjListGraph<TypeParam, double> G(16, true, directed);
+        G.removeNode(0);
+        G.removeNode(3);
+        G.removeNode(15);
+        G.addEdge(1, 14);
+        G.addEdge(7, 7);
+        G.addEdge(14, 4);
+
+        for (const bool uniform : {false, true}) {
+            Aux::Random::setSeed(1, false);
+            std::array<bool, 3> seen{};
+            for (count i = 0; i < 1000; ++i) {
+                const auto edge = GraphTools::randomEdge(G, uniform);
+                static_assert(
+                    std::is_same_v<decltype(edge), const std::pair<TypeParam, TypeParam>>);
+                ASSERT_TRUE(G.hasEdge(edge.first, edge.second));
+                if (edge.first == 7 && edge.second == 7)
+                    seen[0] = true;
+                else if ((edge.first == 1 && edge.second == 14)
+                         || (!directed && edge.first == 14 && edge.second == 1))
+                    seen[1] = true;
+                else
+                    seen[2] = true;
+            }
+            EXPECT_TRUE(seen[0]);
+            EXPECT_TRUE(seen[1]);
+            EXPECT_TRUE(seen[2]);
+        }
     }
 }
 
