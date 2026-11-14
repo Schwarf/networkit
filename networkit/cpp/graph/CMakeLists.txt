@@ -13,4 +13,5 @@ networkit_module_link_modules(graph
     auxiliary structures)
 
 add_subdirectory(test)
+add_subdirectory(gpu)
 

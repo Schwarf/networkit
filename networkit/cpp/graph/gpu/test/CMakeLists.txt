@@ -1,0 +1,3 @@
+networkit_add_test(graph DeviceGraphCSRBuilderGTest graph)
+networkit_add_test(graph DeviceBufferGTest graph)
+networkit_add_test(graph DeviceGraphCSRGTest graph)
