@@ -34,19 +34,19 @@ TEST(DeviceGraphCSRGTest, testDimensionsAndEmptyGraph) {
     EXPECT_EQ(empty.weights().size(), 0u);
 }
 
-TEST(DeviceGraphCSRGTest, testCommitAllBuffers) {
+TEST(DeviceGraphCSRGTest, testUploadAllBuffers) {
     TestBackend::Context context;
     CSR graph(context, 1, 1);
-    graph.rowOffsets().hostWrite()[0] = 0;
-    graph.rowOffsets().hostWrite()[1] = 1;
-    graph.columnIndices().hostWrite()[0] = 0;
-    graph.weights().hostWrite()[0] = 2.5;
-    graph.commitHostWrites();
+    graph.rowOffsets().getWritableBuffer()[0] = 0;
+    graph.rowOffsets().getWritableBuffer()[1] = 1;
+    graph.columnIndices().getWritableBuffer()[0] = 0;
+    graph.weights().getWritableBuffer()[0] = 2.5;
+    graph.uploadToDevice();
     const auto &view = graph;
     EXPECT_EQ(read(view.rowOffsets()), (std::vector<uint64_t>{0, 1}));
     EXPECT_EQ(read(view.columnIndices()), (std::vector<uint32_t>{0}));
     EXPECT_EQ(read(view.weights()), (std::vector<double>{2.5}));
-    EXPECT_EQ(context.commits, 3u);
+    EXPECT_EQ(context.uploads, 3u);
 }
 
 TEST(DeviceGraphCSRGTest, testRejectCapacityOverflowBeforeAllocation) {

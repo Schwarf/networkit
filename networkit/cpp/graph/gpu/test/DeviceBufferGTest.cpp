@@ -14,14 +14,14 @@ namespace {
 
 using Test::read;
 using Test::TestBackend;
-using Buffer = DeviceBuffer<TestBackend, float>;
+using DeviceBuffer = DeviceBuffer<TestBackend, float>;
 using Storage = TestBackend::Storage<float>;
 
 struct WrongSpan : Storage {
-    std::span<double> hostWrite();
+    std::span<double> getWritableBuffer();
 };
-struct MissingCommit : Storage {
-    void commitHostWrites() = delete;
+struct MissingUpload : Storage {
+    void uploadToDevice() = delete;
 };
 struct NonConstReadBack : Storage {
     void readBack(std::span<float>);
@@ -37,8 +37,8 @@ struct ThrowingDestructor : Storage {
 };
 struct CopyableStorage {
     std::size_t size() const;
-    std::span<float> hostWrite();
-    void commitHostWrites();
+    std::span<float> getWritableBuffer();
+    void uploadToDevice();
     void readBack(std::span<float>) const;
     float *nativeHandle();
     const float *nativeHandle() const;
@@ -48,36 +48,36 @@ TEST(DeviceBufferGTest, testStorageContract) {
     static_assert(DeviceBufferStorage<Storage, float>);
     static_assert(std::constructible_from<Storage, TestBackend::Context &, std::size_t>);
     static_assert(!DeviceBufferStorage<WrongSpan, float>);
-    static_assert(!DeviceBufferStorage<MissingCommit, float>);
+    static_assert(!DeviceBufferStorage<MissingUpload, float>);
     static_assert(!DeviceBufferStorage<NonConstReadBack, float>);
     static_assert(!DeviceBufferStorage<NonConstHandle, float>);
     static_assert(!DeviceBufferStorage<WrongSize, float>);
     static_assert(!DeviceBufferStorage<ThrowingDestructor, float>);
     static_assert(!DeviceBufferStorage<CopyableStorage, float>);
-    static_assert(!std::is_copy_constructible_v<Buffer>);
-    static_assert(!std::is_copy_assignable_v<Buffer>);
-    static_assert(std::is_nothrow_move_constructible_v<Buffer>);
-    static_assert(std::is_nothrow_move_assignable_v<Buffer>);
+    static_assert(!std::is_copy_constructible_v<DeviceBuffer>);
+    static_assert(!std::is_copy_assignable_v<DeviceBuffer>);
+    static_assert(std::is_nothrow_move_constructible_v<DeviceBuffer>);
+    static_assert(std::is_nothrow_move_assignable_v<DeviceBuffer>);
     static_assert(
-        std::is_same_v<decltype(std::declval<const Buffer &>().nativeHandle()), const float *>);
+        std::is_same_v<decltype(std::declval<const DeviceBuffer &>().nativeHandle()), const float *>);
     SUCCEED();
 }
 
-TEST(DeviceBufferGTest, testCommitAndReadBack) {
+TEST(DeviceBufferGTest, testUploadAndReadBack) {
     TestBackend::Context context;
-    Buffer buffer(context, 2);
-    auto preparation = buffer.hostWrite();
+    DeviceBuffer buffer(context, 2);
+    auto preparation = buffer.getWritableBuffer();
     preparation[0] = 1.5f;
     preparation[1] = -2.f;
     EXPECT_EQ(read(buffer), (std::vector<float>{0.f, 0.f}));
-    buffer.commitHostWrites();
+    buffer.uploadToDevice();
     EXPECT_EQ(read(buffer), (std::vector<float>{1.5f, -2.f}));
-    EXPECT_EQ(context.commits, 1u);
+    EXPECT_EQ(context.uploads, 1u);
 }
 
 TEST(DeviceBufferGTest, testRejectMismatchedReadBackBeforeCallingBackend) {
     TestBackend::Context context;
-    Buffer buffer(context, 2);
+    DeviceBuffer buffer(context, 2);
     std::array<float, 1> tooSmall{};
     std::array<float, 3> tooLarge{};
     EXPECT_THROW(buffer.readBack(tooSmall), std::invalid_argument);
@@ -88,17 +88,17 @@ TEST(DeviceBufferGTest, testRejectMismatchedReadBackBeforeCallingBackend) {
 TEST(DeviceBufferGTest, testMovesTransferOwnershipAndReleaseReplacedAllocation) {
     TestBackend::Context context;
     {
-        Buffer source(context, 1);
-        source.hostWrite()[0] = 7.f;
-        source.commitHostWrites();
+        DeviceBuffer source(context, 1);
+        source.getWritableBuffer()[0] = 7.f;
+        source.uploadToDevice();
         const auto handle = source.nativeHandle();
 
-        Buffer moved(std::move(source));
+        DeviceBuffer moved(std::move(source));
         EXPECT_EQ(source.size(), 0u);
         EXPECT_EQ(moved.nativeHandle(), handle);
         EXPECT_EQ(context.liveAllocations, 1u);
 
-        Buffer target(context, 3);
+        DeviceBuffer target(context, 3);
         target = std::move(moved);
         EXPECT_EQ(moved.size(), 0u);
         EXPECT_EQ(target.size(), 1u);
@@ -113,17 +113,17 @@ TEST(DeviceBufferGTest, testMovesTransferOwnershipAndReleaseReplacedAllocation) 
 
 TEST(DeviceBufferGTest, testEmptyBuffer) {
     TestBackend::Context context;
-    Buffer buffer(context, 0);
+    DeviceBuffer buffer(context, 0);
     EXPECT_EQ(buffer.size(), 0u);
-    EXPECT_TRUE(buffer.hostWrite().empty());
-    buffer.commitHostWrites();
+    EXPECT_TRUE(buffer.getWritableBuffer().empty());
+    buffer.uploadToDevice();
     EXPECT_TRUE(read(buffer).empty());
 }
 
 TEST(DeviceBufferGTest, testAllocationFailure) {
     TestBackend::Context context;
     context.failOnAllocation = 1;
-    EXPECT_THROW((Buffer(context, 1)), std::bad_alloc);
+    EXPECT_THROW((DeviceBuffer(context, 1)), std::bad_alloc);
     EXPECT_EQ(context.liveAllocations, 0u);
     EXPECT_EQ(context.releases, 0u);
 }

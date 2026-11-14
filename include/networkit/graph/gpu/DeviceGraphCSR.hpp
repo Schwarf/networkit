@@ -20,8 +20,8 @@ namespace NetworKit::GPU {
  * and operations may be further restricted by the backend.
  *
  * Construction allocates storage only. The caller fills rowOffsets(),
- * columnIndices(), and weights() through hostWrite(), then calls
- * commitHostWrites(). Offsets must start at zero, be nondecreasing, and end at
+ * columnIndices(), and weights() through getWritableBuffer(), then calls
+ * uploadToDevice(). Offsets must start at zero, be nondecreasing, and end at
  * numberOfEntries(); columns must be less than numberOfNodes().
  *
  * Row u stores the neighbors of node u and their corresponding edge weights.
@@ -66,10 +66,10 @@ public:
     DeviceBuffer<Backend, WeightT> &weights() { return values; }
     const DeviceBuffer<Backend, WeightT> &weights() const { return values; }
 
-    void commitHostWrites() {
-        offsets.commitHostWrites();
-        columns.commitHostWrites();
-        values.commitHostWrites();
+    void uploadToDevice() {
+        offsets.uploadToDevice();
+        columns.uploadToDevice();
+        values.uploadToDevice();
     }
 
 private:

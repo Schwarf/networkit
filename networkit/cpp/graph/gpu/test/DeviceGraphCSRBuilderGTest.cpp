@@ -38,7 +38,7 @@ TEST(DeviceGraphCSRBuilderGTest, testDirectedOrientationAndRemovedNodes) {
     EXPECT_EQ(read(incoming.graph.rowOffsets()), (std::vector<uint32_t>{0, 0, 1, 3}));
     EXPECT_EQ(read(incoming.graph.columnIndices()), (std::vector<uint32_t>{0, 1, 2}));
     EXPECT_EQ(read(incoming.graph.weights()), (std::vector<float>{2.5f, -1.f, 4.f}));
-    EXPECT_EQ(context.commits, 6u);
+    EXPECT_EQ(context.uploads, 6u);
 }
 
 TEST(DeviceGraphCSRBuilderGTest, testUndirectedUnweightedSelfLoopAndIsolatedNode) {
@@ -68,7 +68,7 @@ TEST(DeviceGraphCSRBuilderGTest, testEmptyGraph) {
     EXPECT_EQ(result.graph.numberOfEntries(), 0u);
     EXPECT_TRUE(result.originalNodeIds.empty());
     EXPECT_EQ(read(result.graph.rowOffsets()), (std::vector<uint64_t>{0}));
-    EXPECT_EQ(context.commits, 3u);
+    EXPECT_EQ(context.uploads, 3u);
 }
 
 TEST(DeviceGraphCSRBuilderGTest, testDifferentSourceTypes) {
@@ -95,7 +95,7 @@ TEST(DeviceGraphCSRBuilderGTest, testRejectUnrepresentableWeights) {
             (buildDeviceGraphCSR<TestBackend, uint32_t, uint32_t, uint32_t>(context, source)),
             std::invalid_argument);
     }
-    EXPECT_EQ(context.commits, 0u);
+    EXPECT_EQ(context.uploads, 0u);
 }
 
 } // namespace

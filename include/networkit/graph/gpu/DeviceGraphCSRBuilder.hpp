@@ -38,8 +38,8 @@ struct DeviceGraphCSRBuildResult {
  * Undirected adjacency is identical in either orientation, with self-loops
  * stored once. Unweighted edges receive weight 1.
  *
- * The backend supplies CPU-accessible spans through hostWrite(); no separate
- * host CSR allocation is made. commitHostWrites() is called before returning.
+ * The backend supplies CPU-accessible spans through getWritableBuffer(); no separate
+ * host CSR allocation is made. uploadToDevice() is called before returning.
  * Graph conversion makes no CUDA or Metal API calls. The graph must not be
  * modified during construction, and context must outlive the returned storage.
  *
@@ -91,9 +91,9 @@ auto buildDeviceGraphCSR(typename Backend::Context &context,
         result.originalNodeIds.push_back(u);
     });
 
-    auto offsets = result.graph.rowOffsets().hostWrite();
-    auto columns = result.graph.columnIndices().hostWrite();
-    auto weights = result.graph.weights().hostWrite();
+    auto offsets = result.graph.rowOffsets().getWritableBuffer();
+    auto columns = result.graph.columnIndices().getWritableBuffer();
+    auto weights = result.graph.weights().getWritableBuffer();
     offsets[0] = 0;
     std::size_t entry = 0;
     for (std::size_t row = 0; row < nodes; ++row) {
@@ -117,7 +117,7 @@ auto buildDeviceGraphCSR(typename Backend::Context &context,
         }
         offsets[row + 1] = static_cast<OffsetT>(entry);
     }
-    result.graph.commitHostWrites();
+    result.graph.uploadToDevice();
     return result;
 }
 

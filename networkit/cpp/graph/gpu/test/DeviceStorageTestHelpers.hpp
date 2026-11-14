@@ -13,10 +13,10 @@
 
 namespace NetworKit::GPU::Test {
 
-// Separate staging and committed memory, with ownership and failure tracking.
+// Separate staging and device memory, with ownership and failure tracking.
 struct TestBackend {
     struct Context {
-        std::size_t commits = 0;
+        std::size_t uploads = 0;
         std::size_t readBackCalls = 0;
         std::size_t allocationAttempts = 0;
         std::size_t liveAllocations = 0;
@@ -30,10 +30,10 @@ struct TestBackend {
         struct Allocation {
             Context &context;
             std::vector<T> preparation;
-            std::vector<T> committed;
+            std::vector<T> device;
 
             Allocation(Context &context, std::size_t n)
-                : context(context), preparation(n), committed(n) {
+                : context(context), preparation(n), device(n) {
                 ++context.liveAllocations;
             }
             ~Allocation() {
@@ -58,20 +58,17 @@ struct TestBackend {
         Storage &operator=(Storage &&) noexcept = default;
 
         std::size_t size() const { return allocation ? allocation->preparation.size() : 0; }
-        std::span<T> hostWrite() { return allocation->preparation; }
-        void commitHostWrites() {
-            allocation->committed = allocation->preparation;
-            ++allocation->context.commits;
+        std::span<T> getWritableBuffer() { return allocation->preparation; }
+        void uploadToDevice() {
+            allocation->device = allocation->preparation;
+            ++allocation->context.uploads;
         }
         void readBack(std::span<T> destination) const {
-            std::copy(allocation->committed.begin(), allocation->committed.end(),
-                      destination.begin());
+            std::copy(allocation->device.begin(), allocation->device.end(), destination.begin());
             ++allocation->context.readBackCalls;
         }
-        T *nativeHandle() { return allocation ? allocation->committed.data() : nullptr; }
-        const T *nativeHandle() const {
-            return allocation ? allocation->committed.data() : nullptr;
-        }
+        T *nativeHandle() { return allocation ? allocation->device.data() : nullptr; }
+        const T *nativeHandle() const { return allocation ? allocation->device.data() : nullptr; }
     };
 };
 

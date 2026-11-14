@@ -16,13 +16,13 @@ namespace NetworKit::GPU {
  * and moved-from size guarantees are behavioral requirements documented below;
  * this concept only checks types and available operations.
  */
-template <class S, class T>
+template <class S, class ValueType>
 concept DeviceBufferStorage =
     std::movable<S> && !std::is_copy_constructible_v<S> && !std::is_copy_assignable_v<S>
-    && requires(S &storage, const S &readOnly, std::span<T> destination) {
+    && requires(S &storage, const S &readOnly, std::span<ValueType> destination) {
            { readOnly.size() } -> std::same_as<std::size_t>;
-           { storage.hostWrite() } -> std::same_as<std::span<T>>;
-           { storage.commitHostWrites() } -> std::same_as<void>;
+           { storage.getWritableBuffer() } -> std::same_as<std::span<ValueType>>;
+           { storage.uploadToDevice() } -> std::same_as<void>;
            { readOnly.readBack(destination) } -> std::same_as<void>;
            storage.nativeHandle();
            readOnly.nativeHandle();
@@ -31,34 +31,34 @@ concept DeviceBufferStorage =
 /**
  * Owns a typed allocation through a backend-specific storage policy.
  *
- * Backend must provide Context and Storage<T>. Storage<T> must be movable and
+ * Backend must provide Context and Storage<ValueType>. Storage<ValueType> must be movable and
  * non-copyable, release its resources without throwing, and implement:
  *
  * - Storage(Context &, std::size_t numberOfElements)
  * - size() const: number of elements, zero after a move
- * - hostWrite(): std::span<T> over CPU-accessible preparation memory
- * - commitHostWrites(): make preparation writes available for GPU execution
- * - readBack(std::span<T>) const: copy completed results into host memory
+ * - getWritableBuffer(): std::span<ValueType> over CPU-accessible preparation memory
+ * - uploadToDevice(): make preparation writes available for GPU execution
+ * - readBack(std::span<ValueType>) const: copy completed results into host memory
  * - nativeHandle() / nativeHandle() const: backend-specific kernel binding
  *
  * For CUDA, preparation memory can be host staging storage; for Metal it can
- * be shared buffer storage. Neither hostWrite() nor nativeHandle() transfers
+ * be shared buffer storage. Neither getWritableBuffer() nor nativeHandle() transfers
  * ownership. Their results must not outlive this allocation.
  *
  * Transfers are synchronous. The caller must ensure GPU execution has completed
  * before accessing results or modifying storage. Context must outlive the buffer.
  */
-template <class Backend, class T>
+template <class Backend, class ValueType>
 class DeviceBuffer {
-    static_assert(std::is_arithmetic_v<T> && !std::is_same_v<T, bool> && !std::is_const_v<T>
-                      && !std::is_volatile_v<T>,
+    static_assert(std::is_arithmetic_v<ValueType> && !std::is_same_v<ValueType, bool>
+                      && !std::is_const_v<ValueType> && !std::is_volatile_v<ValueType>,
                   "GPU buffers require an unqualified numeric element type other than bool");
 
 public:
-    using value_type = T;
-    using Storage = Backend::template Storage<T>;
+    using value_type = ValueType;
+    using Storage = Backend::template Storage<ValueType>;
 
-    static_assert(DeviceBufferStorage<Storage, T>,
+    static_assert(DeviceBufferStorage<Storage, ValueType>,
                   "Backend storage must implement the move-only DeviceBuffer storage API");
     static_assert(std::constructible_from<Storage, typename Backend::Context &, std::size_t>,
                   "Backend storage must be constructible from Context & and an element count");
@@ -73,11 +73,21 @@ public:
 
     std::size_t size() const { return storage.size(); }
 
-    std::span<T> hostWrite() { return storage.hostWrite(); }
+    /**
+     * Returns a non-owning, CPU-accessible view of preparation memory. This
+     * neither copies data nor uploads it. Fill the view, then call
+     * uploadToDevice(). The view must not outlive the underlying allocation.
+     */
+    std::span<ValueType> getWritableBuffer() { return storage.getWritableBuffer(); }
 
-    void commitHostWrites() { storage.commitHostWrites(); }
+    /**
+     * Makes host preparation writes available to GPU execution. Backends with
+     * shared memory may skip the copy. The caller must finish previous GPU work
+     * before modifying preparation memory or uploading it.
+     */
+    void uploadToDevice() { storage.uploadToDevice(); }
 
-    void readBack(std::span<T> destination) const {
+    void readBack(std::span<ValueType> destination) const {
         if (destination.size() != size()) {
             throw std::invalid_argument(
                 "DeviceBuffer::readBack: destination size must match buffer size");
