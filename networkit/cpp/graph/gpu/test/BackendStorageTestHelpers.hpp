@@ -18,28 +18,31 @@ namespace NetworKit::GPU::Test {
 
 template <class Backend, class ValueType>
 void checkDeviceBuffer(typename Backend::Context &context) {
-    using Buffer = DeviceBuffer<Backend, ValueType>;
-    static_assert(DeviceBufferStorage<typename Buffer::Storage, ValueType>);
-    static_assert(!std::is_copy_constructible_v<Buffer>);
-    static_assert(std::is_nothrow_move_constructible_v<Buffer>);
-    static_assert(std::is_nothrow_move_assignable_v<Buffer>);
+    using DeviceBuffer = DeviceBuffer<Backend, ValueType>;
+    static_assert(DeviceBufferStorage<typename DeviceBuffer::Storage, ValueType>);
+    static_assert(!std::is_copy_constructible_v<DeviceBuffer>);
+    static_assert(std::is_nothrow_move_constructible_v<DeviceBuffer>);
+    static_assert(std::is_nothrow_move_assignable_v<DeviceBuffer>);
 
-    Buffer source(context, 2);
-    auto preparation = source.getWritableBuffer();
-    ASSERT_EQ(preparation.size(), 2u);
-    preparation[0] = static_cast<ValueType>(2);
-    preparation[1] = static_cast<ValueType>(7);
+    DeviceBuffer source(context, 2);
+    auto hostStagingBuffer = source.getWritableBuffer();
+    ASSERT_EQ(hostStagingBuffer.size(), 2u);
+    hostStagingBuffer[0] = static_cast<ValueType>(2);
+    hostStagingBuffer[1] = static_cast<ValueType>(7);
     source.uploadToDevice();
     const auto handle = source.nativeHandle();
     ASSERT_NE(handle, nullptr);
 
-    Buffer moved(std::move(source));
+    DeviceBuffer moved(std::move(source));
     EXPECT_EQ(source.size(), 0u);
     EXPECT_TRUE(source.getWritableBuffer().empty());
     EXPECT_EQ(source.nativeHandle(), nullptr);
     EXPECT_EQ(moved.nativeHandle(), handle);
+    // Verify the destination
+    EXPECT_EQ(moved.size(), 2u);
+    EXPECT_EQ(moved.nativeHandle(), handle);
 
-    Buffer target(context, 1);
+    DeviceBuffer target(context, 1);
     target = std::move(moved);
     EXPECT_EQ(moved.size(), 0u);
     EXPECT_EQ(moved.nativeHandle(), nullptr);
@@ -60,7 +63,7 @@ void checkDeviceBuffer(typename Backend::Context &context) {
     std::array<ValueType, 1> wrongSize{};
     EXPECT_THROW(target.readBack(wrongSize), std::invalid_argument);
 
-    Buffer empty(context, 0);
+    DeviceBuffer empty(context, 0);
     EXPECT_EQ(empty.size(), 0u);
     EXPECT_TRUE(empty.getWritableBuffer().empty());
     EXPECT_EQ(empty.nativeHandle(), nullptr);
