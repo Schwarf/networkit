@@ -15,13 +15,24 @@
 namespace NetworKit {
 namespace GraphTools {
 
+
+template <typename GraphT>
+count computeMaxDegree(const GraphT &G, bool inDegree = false);
+
+template <typename GraphT>
+typename GraphT::EdgeWeightT
+computeMaxWeightedDegree(const GraphT &G, bool inDegree = false);
+
 /**
  * Returns the maximum out-degree of the graph.
  *
  * @param G The input graph.
  * @return The maximum out-degree of the graph.
  */
-count maxDegree(const Graph &G);
+template <typename GraphT>
+count maxDegree(const GraphT &G) {
+    return computeMaxDegree(G);
+}
 
 /**
  * Returns the maximum in-degree of the graph.
@@ -29,7 +40,10 @@ count maxDegree(const Graph &G);
  * @param G The input graph.
  * @return The maximum in-degree of the graph.
  */
-count maxInDegree(const Graph &G);
+template <typename GraphT>
+count maxInDegree(const GraphT &G) {
+    return computeMaxDegree(G, true);
+}
 
 /**
  * Returns the maximum weighted out-degree of the graph.
@@ -37,7 +51,10 @@ count maxInDegree(const Graph &G);
  * @param G The input graph.
  * @return Maximum weighted degree of the graph.
  */
-edgeweight maxWeightedDegree(const Graph &G);
+template <typename GraphT>
+GraphT::EdgeWeightT maxWeightedDegree(const GraphT &G) {
+    return computeMaxWeightedDegree(G);
+}
 
 /**
  * Returns the maximum weighted in-degree of the graph.
@@ -45,7 +62,10 @@ edgeweight maxWeightedDegree(const Graph &G);
  * @param G The input graph.
  * @return Maximum weighted in degree of the graph.
  */
-edgeweight maxWeightedInDegree(const Graph &G);
+template <typename GraphT>
+GraphT::EdgeWeightT maxWeightedInDegree(const GraphT &G) {
+    return computeMaxWeightedDegree(G, true);
+}
 
 /**
  * Returns a random node of the input graph.
@@ -53,7 +73,8 @@ edgeweight maxWeightedInDegree(const Graph &G);
  * @param G The input graph.
  * @return A random node.
  */
-node randomNode(const Graph &G);
+template <typename GraphT>
+GraphT::NodeT randomNode(const GraphT &G);
 
 /**
  * Returns n distinct random nodes of the input graph.
@@ -62,7 +83,8 @@ node randomNode(const Graph &G);
  * @param n The number of desired nodes.
  * @return A vector of n distinct random nodes.
  */
-std::vector<node> randomNodes(const Graph &G, count n);
+template <typename GraphT>
+std::vector<typename GraphT::NodeT> randomNodes(const GraphT &G, count n);
 
 /**
  * Returns a random neighbor of node @a u. Returns none if degree is zero.
@@ -577,5 +599,7 @@ bool isBipartite(const Graph &graph);
 } // namespace GraphTools
 
 } // namespace NetworKit
+
+#include "GraphToolsImpl.hpp"
 
 #endif // NETWORKIT_GRAPH_GRAPH_TOOLS_HPP_
