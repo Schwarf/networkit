@@ -276,8 +276,16 @@ auto inVolume(const GraphT &G, InputIt first,
  *
  * @return Graph with the same nodes as the input graph (and without any edge).
  */
-Graph copyNodes(const Graph &G);
-
+template <typename GraphT>
+GraphT copyNodes(const GraphT &G) {
+    GraphT C(G.upperNodeIdBound(), G.isWeighted(), G.isDirected());
+    for (typename GraphT::NodeT u = 0; u < G.upperNodeIdBound(); ++u) {
+        if (!G.hasNode(u)) {
+            C.removeNode(u);
+        }
+    }
+    return C;
+}
 /**
  * Returns an induced subgraph of the input graph (including potential edge weights/directions)
  *
@@ -288,7 +296,8 @@ Graph copyNodes(const Graph &G);
  *
  * @return Induced subgraph.
  */
-Graph subgraphFromNodes(const Graph &G, const std::unordered_set<node> &nodes);
+template <typename GraphT>
+GraphT subgraphFromNodes(const GraphT &G, const std::unordered_set<typename GraphT::NodeT> &nodes);
 
 /**
  * Returns an induced subgraph of the input graph (including potential edge weights/directions)
