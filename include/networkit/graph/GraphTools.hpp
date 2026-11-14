@@ -3,6 +3,7 @@
 #define NETWORKIT_GRAPH_GRAPH_TOOLS_HPP_
 
 #include <span>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -14,12 +15,10 @@
 
 namespace NetworKit {
 namespace GraphTools {
-
-
-template <typename GraphT>
+template <class GraphT>
 count computeMaxDegree(const GraphT &G, bool inDegree = false);
 
-template <typename GraphT>
+template <class GraphT>
 typename GraphT::EdgeWeightT
 computeMaxWeightedDegree(const GraphT &G, bool inDegree = false);
 
@@ -29,7 +28,7 @@ computeMaxWeightedDegree(const GraphT &G, bool inDegree = false);
  * @param G The input graph.
  * @return The maximum out-degree of the graph.
  */
-template <typename GraphT>
+template <class GraphT>
 count maxDegree(const GraphT &G) {
     return computeMaxDegree(G);
 }
@@ -40,7 +39,7 @@ count maxDegree(const GraphT &G) {
  * @param G The input graph.
  * @return The maximum in-degree of the graph.
  */
-template <typename GraphT>
+template <class GraphT>
 count maxInDegree(const GraphT &G) {
     return computeMaxDegree(G, true);
 }
@@ -51,7 +50,7 @@ count maxInDegree(const GraphT &G) {
  * @param G The input graph.
  * @return Maximum weighted degree of the graph.
  */
-template <typename GraphT>
+template <class GraphT>
 GraphT::EdgeWeightT maxWeightedDegree(const GraphT &G) {
     return computeMaxWeightedDegree(G);
 }
@@ -62,7 +61,7 @@ GraphT::EdgeWeightT maxWeightedDegree(const GraphT &G) {
  * @param G The input graph.
  * @return Maximum weighted in degree of the graph.
  */
-template <typename GraphT>
+template <class GraphT>
 GraphT::EdgeWeightT maxWeightedInDegree(const GraphT &G) {
     return computeMaxWeightedDegree(G, true);
 }
@@ -73,7 +72,7 @@ GraphT::EdgeWeightT maxWeightedInDegree(const GraphT &G) {
  * @param G The input graph.
  * @return A random node.
  */
-template <typename GraphT>
+template <class GraphT>
 GraphT::NodeT randomNode(const GraphT &G) {
     using NodeT = typename GraphT::NodeT;
     if (!G.numberOfNodes())
@@ -99,7 +98,7 @@ GraphT::NodeT randomNode(const GraphT &G) {
  * @param n The number of desired nodes.
  * @return A vector of n distinct random nodes.
  */
-template <typename GraphT>
+template <class GraphT>
 std::vector<typename GraphT::NodeT> randomNodes(const GraphT &G, count n);
 
 /**
@@ -109,7 +108,7 @@ std::vector<typename GraphT::NodeT> randomNodes(const GraphT &G, count n);
  * @param u Node.
  * @return A random neighbor of @a u.
  */
-template<typename GraphT>
+template<class GraphT>
 GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u) {
     if (!G.degree(u))
         return NullNodeId<typename GraphT::NodeT>;
@@ -129,7 +128,7 @@ GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u) {
  * random.
  * @return std::pair<node, node> A random edge.
  */
-template<typename GraphT>
+template<class GraphT>
 std::pair<typename GraphT::NodeT, typename GraphT::NodeT> randomEdge(const GraphT &G, bool uniformDistribution = false);
 
 /**
@@ -140,7 +139,7 @@ std::pair<typename GraphT::NodeT, typename GraphT::NodeT> randomEdge(const Graph
  * @param nr The number of random edges to be returned.
  * @return std::vector<std::pair<node, node>> Vector with random edges.
  */
-template<typename GraphT>
+template<class GraphT>
 std::vector<std::pair<typename GraphT::NodeT, typename GraphT::NodeT>> randomEdges(const GraphT &G, count nr);
 
 /**
@@ -175,8 +174,8 @@ void removeEdgesFromIsolatedSet(Graph &G, InputIt first, InputIt last) {
  * @return std::pair<count, count> with the number of nodes and the number
  * of edges of the input graph.
  */
-template<typename GraphT>
-std::pair<typename GraphT::NodeT, typename GraphT::NodeT> size(const GraphT &G) noexcept {
+template<class GraphT>
+std::pair<count, count> size(const GraphT &G) noexcept {
     return {G.numberOfNodes(), G.numberOfEdges()};
 }
 
@@ -187,7 +186,7 @@ std::pair<typename GraphT::NodeT, typename GraphT::NodeT> size(const GraphT &G) 
  *
  * @return double The density of the input graph.
  */
-template<typename GraphT>
+template<class GraphT>
 double density(const GraphT &G) noexcept {
     if (G.numberOfNodes() <= 1)
         return 0;
@@ -203,42 +202,69 @@ double density(const GraphT &G) noexcept {
  * @param G The input graph.
  * @return Volume of the graph.
  */
-double volume(const Graph &G);
+template <class GraphT>
+auto volume(const GraphT &G) -> std::common_type_t<typename GraphT::EdgeWeightT, double> {
+    using WeightSumT = std::common_type_t<typename GraphT::EdgeWeightT, double>;
+    using EdgeWeightT = typename GraphT::EdgeWeightT;
+    using NodeT = typename GraphT::NodeT;
+
+    WeightSumT result = 0;
+    G.forEdges([&](NodeT, NodeT, EdgeWeightT weight, edgeid) {
+        result += static_cast<WeightSumT>(weight);
+    });
+    return G.isDirected() ? result : result * WeightSumT{2};
+}
 
 /**
- * Returns the volume (sum of the out-degree of all nodes) of a range
- * of nodes.
+ * Returns the volume (sum of the weighted out-degree of all nodes) of a range
+ * of nodes. Self-loops are counted twice in undirected graphs.
  *
  * @param G The input graph.
  * @param first,last The range of nodes to insert
  * @return Volume of the graph.
  */
-template <class InputIt>
-double volume(const Graph &G, InputIt first, InputIt last) {
-    double outVolume = 0.0;
+template <class InputIt, typename GraphT>
+auto volume(const GraphT &G, InputIt first,
+            InputIt last) -> std::common_type_t<typename GraphT::EdgeWeightT, double> {
+    using NodeT = typename GraphT::NodeT;
+    using EdgeWeightT = typename GraphT::EdgeWeightT;
+    using WeightSumT = std::common_type_t<EdgeWeightT, double>;
+    WeightSumT outVolume = 0;
 
-    // Compute volume of subgraph
-    for (; first != last; ++first)
-        outVolume += G.weightedDegree(*first, !G.isDirected());
+    for (; first != last; ++first) {
+        const NodeT u = *first;
+        G.forNeighborsOf(u, [&](NodeT, NodeT v, EdgeWeightT weight, edgeid) {
+            const WeightSumT value = static_cast<WeightSumT>(weight);
+            outVolume += !G.isDirected() && u == v ? WeightSumT{2} * value : value;
+        });
+    }
 
     return outVolume;
 }
 
 /**
- * Returns the inVolume (sum of the in-degree of all nodes) of a range
- * of nodes.
+ * Returns the inVolume (sum of the weighted in-degree of all nodes) of a range
+ * of nodes. Self-loops are counted twice in undirected graphs.
  *
  * @param G The input graph.
  * @param first,last The range of nodes to insert
  * @return inVolume of the subgraph.
  */
-template <class InputIt>
-double inVolume(const Graph &G, InputIt first, InputIt last) {
-    double inVolume = 0.0;
+template <class InputIt, typename GraphT>
+auto inVolume(const GraphT &G, InputIt first,
+              InputIt last) -> std::common_type_t<typename GraphT::EdgeWeightT, double> {
+    using NodeT = typename GraphT::NodeT;
+    using EdgeWeightT = typename GraphT::EdgeWeightT;
+    using WeightSumT = std::common_type_t<EdgeWeightT, double>;
+    WeightSumT inVolume = 0;
 
-    // Compute volume of subgraph
-    for (; first != last; ++first)
-        inVolume += G.weightedDegreeIn(*first, !G.isDirected());
+    for (; first != last; ++first) {
+        const NodeT u = *first;
+        G.forInNeighborsOf(u, [&](NodeT, NodeT v, EdgeWeightT weight, edgeid) {
+            const WeightSumT value = static_cast<WeightSumT>(weight);
+            inVolume += !G.isDirected() && u == v ? WeightSumT{2} * value : value;
+        });
+    }
 
     return inVolume;
 }

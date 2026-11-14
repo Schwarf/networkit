@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -112,7 +113,8 @@ TEST_P(GraphToolsGTest, testVolume) {
         // Volume for either directed/undirected
         double mod = directed() ? 1.0 : 2.0;
         double baseG = weighted() ? G.totalEdgeWeight() : static_cast<double>(G.numberOfEdges());
-        EXPECT_DOUBLE_EQ(volume, mod * baseG);
+        // Direct and parallel accumulation can round differently.
+        EXPECT_NEAR(volume, mod * baseG, 1e-7);
 
         // Volume for subgraph G2
         node seed = Aux::Random::integer(G.upperNodeIdBound());
@@ -341,6 +343,58 @@ using GraphToolsTestTypes =
                    GraphToolsTestConfig<uint64_t, uint64_t>>;
 TYPED_TEST_SUITE(GraphToolsTypedGTest, GraphToolsTestTypes);
 
+TYPED_TEST(GraphToolsTypedGTest, testSizeOfEmptyGraphs) {
+    using GraphT = typename TestFixture::GraphT;
+    static_assert(std::is_same_v<decltype(GraphTools::size(std::declval<const GraphT &>())),
+                                 std::pair<count, count>>);
+    static_assert(noexcept(GraphTools::size(std::declval<const GraphT &>())));
+    for (const bool directed : {false, true}) {
+        for (const bool weighted : {false, true}) {
+            const GraphT empty(0, weighted, directed);
+            const GraphT isolated(5, weighted, directed);
+            EXPECT_EQ(GraphTools::size(empty), (std::pair<count, count>{0, 0}));
+            EXPECT_EQ(GraphTools::size(isolated), (std::pair<count, count>{5, 0}));
+        }
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testSizeAfterUpdates) {
+    for (const bool directed : {false, true}) {
+        for (const bool weighted : {false, true}) {
+            typename TestFixture::GraphT G(6, weighted, directed);
+            G.addEdge(1, 2);
+            G.addEdge(2, 3);
+            G.addEdge(3, 3);
+            EXPECT_EQ(GraphTools::size(G), (std::pair<count, count>{6, 3}));
+            G.removeEdge(1, 2);
+            EXPECT_EQ(GraphTools::size(G), (std::pair<count, count>{6, 2}));
+            G.removeNode(2);
+            G.removeNode(0);
+            EXPECT_EQ(GraphTools::size(G), (std::pair<count, count>{4, 1}));
+            G.restoreNode(2);
+            const auto newNode = G.addNode();
+            G.addEdge(newNode, 3);
+            EXPECT_EQ(GraphTools::size(G), (std::pair<count, count>{6, 2}));
+            G.removeNode(3);
+            EXPECT_EQ(GraphTools::size(G), (std::pair<count, count>{5, 0}));
+        }
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testSizeEdgeCountExceedsUint16) {
+    using NodeT = typename TestFixture::NodeT;
+    constexpr NodeT n = 257;
+    typename TestFixture::GraphT G(n, false, true);
+    for (NodeT u = 0; u < n; ++u) {
+        for (NodeT v = 0; v < n; ++v) {
+            if (u != v)
+                G.addEdge(u, v);
+        }
+    }
+    // 65,792 edges cannot be represented by the uint16_t node type.
+    EXPECT_EQ(GraphTools::size(G), (std::pair<count, count>{257, 65792}));
+}
+
 TYPED_TEST(GraphToolsTypedGTest, testDegreesOfEmptyGraphs) {
     for (const bool directed : {false, true}) {
         for (const count n : {count{0}, count{4}}) {
@@ -351,6 +405,146 @@ TYPED_TEST(GraphToolsTypedGTest, testDegreesOfEmptyGraphs) {
             EXPECT_EQ(GraphTools::maxWeightedInDegree(G), 0);
         }
     }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testDensityAndVolumeOfEmptyGraphs) {
+    using NodeT = typename TestFixture::NodeT;
+    for (const bool directed : {false, true}) {
+        for (const count n : {count{0}, count{1}, count{4}}) {
+            typename TestFixture::GraphT G(n, true, directed);
+            const std::array<NodeT, 0> empty{};
+            EXPECT_EQ(GraphTools::density(G), 0);
+            EXPECT_EQ(GraphTools::volume(G), 0);
+            EXPECT_EQ(GraphTools::volume(G, empty.begin(), empty.end()), 0);
+            EXPECT_EQ(GraphTools::inVolume(G, empty.begin(), empty.end()), 0);
+            for (NodeT u = 0; u < n; ++u)
+                G.removeNode(u);
+            EXPECT_EQ(GraphTools::density(G), 0);
+            EXPECT_EQ(GraphTools::volume(G), 0);
+            EXPECT_EQ(GraphTools::volume(G, G.nodeRange().begin(), G.nodeRange().end()), 0);
+            EXPECT_EQ(GraphTools::inVolume(G, G.nodeRange().begin(), G.nodeRange().end()), 0);
+        }
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testDensityIgnoresWeightsSelfLoopsAndDeletedNodes) {
+    for (const bool directed : {false, true}) {
+        for (const bool weighted : {false, true}) {
+            typename TestFixture::GraphT G(6, weighted, directed);
+            G.removeNode(0);
+            G.removeNode(5);
+            G.addEdge(1, 2, 10);
+            G.addEdge(1, 3, 20);
+            G.addEdge(3, 3, 30);
+            static_assert(std::is_same_v<decltype(GraphTools::density(G)), double>);
+            EXPECT_DOUBLE_EQ(GraphTools::density(G), directed ? 1.0 / 6 : 1.0 / 3);
+            G.removeNode(4);
+            EXPECT_DOUBLE_EQ(GraphTools::density(G), directed ? 1.0 / 3 : 2.0 / 3);
+            G.addEdge(2, 3, 40);
+            EXPECT_DOUBLE_EQ(GraphTools::density(G), directed ? 0.5 : 1.0);
+        }
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testDirectedVolumes) {
+    using NodeT = typename TestFixture::NodeT;
+    using WeightSumT = std::common_type_t<typename TestFixture::EdgeWeightT, double>;
+    const std::array<NodeT, 2> subset{1, 2};
+    const std::array<NodeT, 2> complement{3, 4};
+    for (const bool weighted : {false, true}) {
+        typename TestFixture::GraphT G(6, weighted, true);
+        G.removeNode(0);
+        G.removeNode(5);
+        G.addEdge(1, 2, 200);
+        G.addEdge(1, 3, 100);
+        G.addEdge(4, 1, 50);
+        G.addEdge(2, 2, 150);
+
+        static_assert(std::is_same_v<decltype(GraphTools::volume(G)), WeightSumT>);
+        static_assert(std::is_same_v<decltype(GraphTools::volume(G, subset.begin(), subset.end())),
+                                     WeightSumT>);
+        static_assert(
+            std::is_same_v<decltype(GraphTools::inVolume(G, subset.begin(), subset.end())),
+                           WeightSumT>);
+        EXPECT_EQ(GraphTools::volume(G), weighted ? 500 : 4);
+        EXPECT_EQ(GraphTools::volume(G, subset.begin(), subset.end()), weighted ? 450 : 3);
+        EXPECT_EQ(GraphTools::inVolume(G, subset.begin(), subset.end()), weighted ? 400 : 3);
+        EXPECT_EQ(GraphTools::volume(G, complement.begin(), complement.end()), weighted ? 50 : 1);
+        EXPECT_EQ(GraphTools::inVolume(G, complement.begin(), complement.end()),
+                  weighted ? 100 : 1);
+        EXPECT_EQ(GraphTools::volume(G, G.nodeRange().begin(), G.nodeRange().end()),
+                  GraphTools::volume(G));
+        EXPECT_EQ(GraphTools::inVolume(G, G.nodeRange().begin(), G.nodeRange().end()),
+                  GraphTools::volume(G));
+        EXPECT_EQ(GraphTools::volume(G, subset.begin(), subset.begin()), 0);
+        EXPECT_EQ(GraphTools::inVolume(G, subset.begin(), subset.begin()), 0);
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testUndirectedVolumesCountSelfLoopsTwice) {
+    using NodeT = typename TestFixture::NodeT;
+    const std::array<NodeT, 2> subset{1, 2};
+    for (const bool weighted : {false, true}) {
+        typename TestFixture::GraphT G(6, weighted);
+        G.removeNode(0);
+        G.removeNode(5);
+        G.addEdge(1, 2, 200);
+        G.addEdge(1, 3, 100);
+        G.addEdge(4, 1, 50);
+        G.addEdge(2, 2, 150);
+
+        // Both the weight sum and individual weighted degrees exceed uint8_t's range.
+        EXPECT_EQ(GraphTools::volume(G), weighted ? 1000 : 8);
+        EXPECT_EQ(GraphTools::volume(G, subset.begin(), subset.end()), weighted ? 850 : 6);
+        EXPECT_EQ(GraphTools::inVolume(G, subset.begin(), subset.end()), weighted ? 850 : 6);
+        EXPECT_EQ(GraphTools::volume(G, G.nodeRange().begin(), G.nodeRange().end()),
+                  GraphTools::volume(G));
+        EXPECT_EQ(GraphTools::inVolume(G, G.nodeRange().begin(), G.nodeRange().end()),
+                  GraphTools::volume(G));
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testSingletonSelfLoopVolumeAndDensity) {
+    using NodeT = typename TestFixture::NodeT;
+    const std::array<NodeT, 1> nodes{0};
+    for (const bool directed : {false, true}) {
+        typename TestFixture::GraphT G(1, true, directed);
+        G.addEdge(0, 0, 200);
+        const auto expected = directed ? 200 : 400;
+        EXPECT_EQ(GraphTools::density(G), 0);
+        EXPECT_EQ(GraphTools::volume(G), expected);
+        EXPECT_EQ(GraphTools::volume(G, nodes.begin(), nodes.end()), expected);
+        EXPECT_EQ(GraphTools::inVolume(G, nodes.begin(), nodes.end()), expected);
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testFractionalVolumes) {
+    using EdgeWeightT = typename TestFixture::EdgeWeightT;
+    using NodeT = typename TestFixture::NodeT;
+    if constexpr (std::is_floating_point_v<EdgeWeightT>) {
+        typename TestFixture::GraphT G(2, true, true);
+        G.addEdge(0, 1, EdgeWeightT{0.25});
+        G.addEdge(1, 1, EdgeWeightT{0.5});
+        const std::array<NodeT, 1> subset{1};
+        EXPECT_EQ(GraphTools::volume(G), 0.75);
+        EXPECT_EQ(GraphTools::volume(G, subset.begin(), subset.end()), 0.5);
+        EXPECT_EQ(GraphTools::inVolume(G, subset.begin(), subset.end()), 0.75);
+    }
+}
+
+TEST(GraphToolsVolumeGTest, testLongDoublePrecision) {
+    AdjListGraph<uint32_t, long double> G(2, true, true);
+    const long double weight = 1.0L + std::numeric_limits<long double>::epsilon();
+    G.addEdge(0, 1, weight);
+    const std::array<uint32_t, 2> nodes{0, 1};
+    static_assert(std::is_same_v<decltype(GraphTools::volume(G)), long double>);
+    static_assert(
+        std::is_same_v<decltype(GraphTools::volume(G, nodes.begin(), nodes.end())), long double>);
+    static_assert(
+        std::is_same_v<decltype(GraphTools::inVolume(G, nodes.begin(), nodes.end())), long double>);
+    EXPECT_EQ(GraphTools::volume(G), weight);
+    EXPECT_EQ(GraphTools::volume(G, nodes.begin(), nodes.end()), weight);
+    EXPECT_EQ(GraphTools::inVolume(G, nodes.begin(), nodes.end()), weight);
 }
 
 TYPED_TEST(GraphToolsTypedGTest, testDirectedDegrees) {
