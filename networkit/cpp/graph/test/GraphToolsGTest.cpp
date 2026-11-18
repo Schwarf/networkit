@@ -395,6 +395,75 @@ TYPED_TEST(GraphToolsTypedGTest, testSizeEdgeCountExceedsUint16) {
     EXPECT_EQ(GraphTools::size(G), (std::pair<count, count>{257, 65792}));
 }
 
+TYPED_TEST(GraphToolsTypedGTest, testCopyNodes) {
+    using GraphT = typename TestFixture::GraphT;
+    using NodeT = typename TestFixture::NodeT;
+    for (const bool directed : {false, true}) {
+        for (const bool weighted : {false, true}) {
+            GraphT G(8, weighted, directed);
+            G.addEdge(1, 3, 2);
+            G.addEdge(3, 5, 3);
+            G.removeNode(0);
+            G.removeNode(6);
+
+            const auto copy = GraphTools::copyNodes(G);
+            static_assert(std::is_same_v<decltype(copy), const GraphT>);
+            EXPECT_EQ(copy.isDirected(), directed);
+            EXPECT_EQ(copy.isWeighted(), weighted);
+            EXPECT_EQ(copy.upperNodeIdBound(), G.upperNodeIdBound());
+            EXPECT_EQ(copy.numberOfNodes(), G.numberOfNodes());
+            EXPECT_EQ(copy.numberOfEdges(), 0);
+            for (NodeT u = 0; u < G.upperNodeIdBound(); ++u)
+                EXPECT_EQ(copy.hasNode(u), G.hasNode(u));
+        }
+    }
+}
+
+TYPED_TEST(GraphToolsTypedGTest, testSubgraphFromNodes) {
+    using GraphT = typename TestFixture::GraphT;
+    using NodeT = typename TestFixture::NodeT;
+    const std::vector<NodeT> selected{1, 3, 5};
+    const std::unordered_set<NodeT> selectedSet(selected.begin(), selected.end());
+
+    for (const bool directed : {false, true}) {
+        for (const bool weighted : {false, true}) {
+            GraphT G(8, weighted, directed);
+            G.removeNode(0);
+            G.removeNode(6);
+            G.addEdge(1, 3, 2);
+            G.addEdge(3, 5, 3);
+            G.addEdge(5, 5, 4);
+            G.addEdge(1, 2, 5);
+            G.addEdge(4, 3, 6);
+
+            const auto preserved = GraphTools::subgraphFromNodes(G, selectedSet);
+            static_assert(std::is_same_v<decltype(preserved), const GraphT>);
+            EXPECT_EQ(preserved.isDirected(), directed);
+            EXPECT_EQ(preserved.isWeighted(), weighted);
+            EXPECT_EQ(preserved.upperNodeIdBound(), G.upperNodeIdBound());
+            EXPECT_EQ(preserved.numberOfNodes(), selected.size());
+            EXPECT_EQ(preserved.numberOfEdges(), 3);
+            for (NodeT u = 0; u < G.upperNodeIdBound(); ++u)
+                EXPECT_EQ(preserved.hasNode(u), selectedSet.contains(u));
+            EXPECT_EQ(preserved.weight(1, 3), G.weight(1, 3));
+            EXPECT_EQ(preserved.weight(3, 5), G.weight(3, 5));
+            EXPECT_EQ(preserved.weight(5, 5), G.weight(5, 5));
+
+            const auto compact =
+                GraphTools::subgraphFromNodes(G, selected.begin(), selected.end(), true);
+            static_assert(std::is_same_v<decltype(compact), const GraphT>);
+            EXPECT_EQ(compact.isDirected(), directed);
+            EXPECT_EQ(compact.isWeighted(), weighted);
+            EXPECT_EQ(compact.upperNodeIdBound(), selected.size());
+            EXPECT_EQ(compact.numberOfNodes(), selected.size());
+            EXPECT_EQ(compact.numberOfEdges(), 3);
+            EXPECT_EQ(compact.weight(0, 1), G.weight(1, 3));
+            EXPECT_EQ(compact.weight(1, 2), G.weight(3, 5));
+            EXPECT_EQ(compact.weight(2, 2), G.weight(5, 5));
+        }
+    }
+}
+
 TYPED_TEST(GraphToolsTypedGTest, testDegreesOfEmptyGraphs) {
     for (const bool directed : {false, true}) {
         for (const count n : {count{0}, count{4}}) {

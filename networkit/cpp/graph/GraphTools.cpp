@@ -13,23 +13,6 @@ namespace NetworKit {
 
 namespace GraphTools {
 
-
-
-
-Graph copyNodes(const Graph &G) {
-    Graph C(G.upperNodeIdBound(), G.isWeighted(), G.isDirected());
-    for (node u = 0; u < G.upperNodeIdBound(); ++u) {
-        if (!G.hasNode(u)) {
-            C.removeNode(u);
-        }
-    }
-    return C;
-}
-
-Graph subgraphFromNodes(const Graph &G, const std::unordered_set<node> &nodes) {
-    return subgraphFromNodes(G, nodes.begin(), nodes.end(), false);
-}
-
 Graph subgraphAndNeighborsFromNodes(const Graph &G, const std::unordered_set<node> &nodes,
                                     bool includeOutNeighbors, bool includeInNeighbors) {
     const auto neighbors = [&] {

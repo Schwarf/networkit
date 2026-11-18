@@ -19,8 +19,7 @@ template <class GraphT>
 count computeMaxDegree(const GraphT &G, bool inDegree = false);
 
 template <class GraphT>
-typename GraphT::EdgeWeightT
-computeMaxWeightedDegree(const GraphT &G, bool inDegree = false);
+typename GraphT::EdgeWeightT computeMaxWeightedDegree(const GraphT &G, bool inDegree = false);
 
 /**
  * Returns the maximum out-degree of the graph.
@@ -76,10 +75,11 @@ template <class GraphT>
 GraphT::NodeT randomNode(const GraphT &G) {
     using NodeT = typename GraphT::NodeT;
     if (!G.numberOfNodes())
-        return  NullNodeId<NodeT>;
+        return NullNodeId<NodeT>;
 
     auto &gen = Aux::Random::getURNG();
-    std::uniform_int_distribution<NodeT> distr{NodeT{0},  static_cast<NodeT>(G.upperNodeIdBound() - 1)};
+    std::uniform_int_distribution<NodeT> distr{NodeT{0},
+                                               static_cast<NodeT>(G.upperNodeIdBound() - 1)};
     NodeT v;
 
     do {
@@ -108,7 +108,7 @@ std::vector<typename GraphT::NodeT> randomNodes(const GraphT &G, count n);
  * @param u Node.
  * @return A random neighbor of @a u.
  */
-template<class GraphT>
+template <class GraphT>
 GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u) {
     if (!G.degree(u))
         return NullNodeId<typename GraphT::NodeT>;
@@ -128,8 +128,9 @@ GraphT::NodeT randomNeighbor(const GraphT &G, typename GraphT::NodeT u) {
  * random.
  * @return std::pair<node, node> A random edge.
  */
-template<class GraphT>
-std::pair<typename GraphT::NodeT, typename GraphT::NodeT> randomEdge(const GraphT &G, bool uniformDistribution = false);
+template <class GraphT>
+std::pair<typename GraphT::NodeT, typename GraphT::NodeT>
+randomEdge(const GraphT &G, bool uniformDistribution = false);
 
 /**
  * Returns a vector with @a nr random edges. The edges are chosen uniformly
@@ -139,8 +140,9 @@ std::pair<typename GraphT::NodeT, typename GraphT::NodeT> randomEdge(const Graph
  * @param nr The number of random edges to be returned.
  * @return std::vector<std::pair<node, node>> Vector with random edges.
  */
-template<class GraphT>
-std::vector<std::pair<typename GraphT::NodeT, typename GraphT::NodeT>> randomEdges(const GraphT &G, count nr);
+template <class GraphT>
+std::vector<std::pair<typename GraphT::NodeT, typename GraphT::NodeT>> randomEdges(const GraphT &G,
+                                                                                   count nr);
 
 /**
  * Efficiently removes all the edges adjacent to a set of nodes that is
@@ -174,7 +176,7 @@ void removeEdgesFromIsolatedSet(Graph &G, InputIt first, InputIt last) {
  * @return std::pair<count, count> with the number of nodes and the number
  * of edges of the input graph.
  */
-template<class GraphT>
+template <class GraphT>
 std::pair<count, count> size(const GraphT &G) noexcept {
     return {G.numberOfNodes(), G.numberOfEdges()};
 }
@@ -186,7 +188,7 @@ std::pair<count, count> size(const GraphT &G) noexcept {
  *
  * @return double The density of the input graph.
  */
-template<class GraphT>
+template <class GraphT>
 double density(const GraphT &G) noexcept {
     if (G.numberOfNodes() <= 1)
         return 0;
@@ -312,38 +314,39 @@ GraphT subgraphFromNodes(const GraphT &G, const std::unordered_set<typename Grap
  *
  * @return Induced subgraph.
  */
-template <class InputIt>
-Graph subgraphFromNodes(const Graph &G, InputIt first, InputIt last, bool compact = false) {
+template <class InputIt, typename GraphT>
+GraphT subgraphFromNodes(const GraphT &G, InputIt first, InputIt last, bool compact = false) {
+    using NodeT = typename GraphT::NodeT;
+    using EdgeWeightT = typename GraphT::EdgeWeightT;
+
     count subgraphIdBound = 0;
-    std::unordered_map<node, node> reverseMapping;
+    std::unordered_map<NodeT, NodeT> reverseMapping;
 
     if (compact) {
         for (InputIt it = first; it != last; ++it) {
-            reverseMapping[*it] = subgraphIdBound;
+            reverseMapping[*it] = static_cast<NodeT>(subgraphIdBound);
             ++subgraphIdBound;
         }
     } else {
         subgraphIdBound = G.upperNodeIdBound();
     }
 
-    Graph S(subgraphIdBound, G.isWeighted(), G.isDirected());
+    GraphT S(subgraphIdBound, G.isWeighted(), G.isDirected());
 
     if (compact) {
-        for (auto nodeIt : reverseMapping) {
-            node u = nodeIt.first;
-            node localU = nodeIt.second;
-            G.forNeighborsOf(u, [&](node v, edgeweight weight) {
+        for (const auto &[u, localU] : reverseMapping) {
+            G.forNeighborsOf(u, [&](NodeT, NodeT v, EdgeWeightT weight, edgeid) {
                 if (!G.isDirected() && u > v)
                     return;
 
-                auto vMapping = reverseMapping.find(v);
+                const auto vMapping = reverseMapping.find(v);
                 if (vMapping != reverseMapping.end())
                     S.addEdge(localU, vMapping->second, weight);
             });
         }
     } else {
         // First, delete all nodes
-        for (node u = 0; u < G.upperNodeIdBound(); ++u) {
+        for (NodeT u = 0; u < G.upperNodeIdBound(); ++u) {
             S.removeNode(u);
         }
 
@@ -352,15 +355,19 @@ Graph subgraphFromNodes(const Graph &G, InputIt first, InputIt last, bool compac
             S.restoreNode(*it);
         }
 
-        G.forEdges([&](node u, node v, edgeweight w) {
-            // only include edges if at least one endpoint is in nodes
+        G.forEdges([&](NodeT u, NodeT v, EdgeWeightT weight, edgeid) {
             if (S.hasNode(u) && S.hasNode(v)) {
-                S.addEdge(u, v, w);
+                S.addEdge(u, v, weight);
             }
         });
     }
 
     return S;
+}
+
+template <typename GraphT>
+GraphT subgraphFromNodes(const GraphT &G, const std::unordered_set<typename GraphT::NodeT> &nodes) {
+    return subgraphFromNodes(G, nodes.begin(), nodes.end(), false);
 }
 
 /**
